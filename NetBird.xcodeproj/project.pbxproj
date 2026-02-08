@@ -137,6 +137,8 @@
 		50E608202A7979D600BAF09B /* SideDrawer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50E6081F2A7979D600BAF09B /* SideDrawer.swift */; };
 		50E608242A79966600BAF09B /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50E608232A79966600BAF09B /* AboutView.swift */; };
 		50E608262A79968500BAF09B /* AdvancedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50E608252A79968500BAF09B /* AdvancedView.swift */; };
+		C0DE00022F08000100000001 /* StatusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DE00012F08000100000001 /* StatusView.swift */; };
+		C0DE00042F08000200000001 /* ConnectedPeersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DE00032F08000200000001 /* ConnectedPeersView.swift */; };
 		94F739DA3E076313908BA6DF /* GlobalConstantsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E054D83063E440DAD0C52FA /* GlobalConstantsTests.swift */; };
 		978FC4702EEDF167002D0EB8 /* AppLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 978FC46F2EEDF167002D0EB8 /* AppLogger.swift */; };
 		978FC4712EEDF167002D0EB8 /* AppLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 978FC46F2EEDF167002D0EB8 /* AppLogger.swift */; };
@@ -298,6 +300,8 @@
 		50E6081F2A7979D600BAF09B /* SideDrawer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SideDrawer.swift; sourceTree = "<group>"; };
 		50E608232A79966600BAF09B /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
 		50E608252A79968500BAF09B /* AdvancedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdvancedView.swift; sourceTree = "<group>"; };
+		C0DE00012F08000100000001 /* StatusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusView.swift; sourceTree = "<group>"; };
+		C0DE00032F08000200000001 /* ConnectedPeersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectedPeersView.swift; sourceTree = "<group>"; };
 		53CB9305A9DC6CAD1895495A /* SharedUserDefaultsTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SharedUserDefaultsTests.swift; sourceTree = "<group>"; };
 		8AA7193B3AE82DF185EDEB1B /* AppLoggerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppLoggerTests.swift; sourceTree = "<group>"; };
 		91FA1F06D3375864C74EAB3B /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
@@ -531,6 +535,8 @@
 				50A8911C2A792A15007C48FC /* MainView.swift */,
 				50E608232A79966600BAF09B /* AboutView.swift */,
 				50E608252A79968500BAF09B /* AdvancedView.swift */,
+				C0DE00012F08000100000001 /* StatusView.swift */,
+				C0DE00032F08000200000001 /* ConnectedPeersView.swift */,
 				50CD84352AD82F9400CF830B /* ServerView.swift */,
 				509CCD6B2BE90D0E00B7C2D8 /* PeerTabView.swift */,
 				509CCD6D2BE90D2100B7C2D8 /* RouteTabView.swift */,
@@ -988,6 +994,8 @@
 				505118D02AD96ECA003027D3 /* key.c in Sources */,
 				F1B292072EE0AC2A001D91B8 /* EnvVarPackager.swift in Sources */,
 				50E608262A79968500BAF09B /* AdvancedView.swift in Sources */,
+				C0DE00022F08000100000001 /* StatusView.swift in Sources */,
+				C0DE00042F08000200000001 /* ConnectedPeersView.swift in Sources */,
 				50E608242A79966600BAF09B /* AboutView.swift in Sources */,
 				50CD81622AD0595E00CF830B /* DNSManager.swift in Sources */,
 				509CCD682BE8FFBF00B7C2D8 /* TabBarButton.swift in Sources */,
@@ -1402,7 +1410,7 @@
 				CODE_SIGN_ENTITLEMENTS = NetBird/NetBird.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 7;
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = D6N35G7JTM;
 				ENABLE_PREVIEWS = YES;
@@ -1448,7 +1456,7 @@
 				CODE_SIGN_ENTITLEMENTS = NetBird/NetBird.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 7;
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = D6N35G7JTM;
 				ENABLE_PREVIEWS = YES;

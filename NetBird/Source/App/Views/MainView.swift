@@ -54,6 +54,33 @@ struct iOSMainView: View {
     }
     
     var body: some View {
+        ZStack {
+            Color("BgScreen")
+                .ignoresSafeArea()
+            VStack(spacing: 0) {
+                VStack(alignment: .leading, spacing: 5) {
+                    InternetStatusView()
+                        .padding(.top, 10)
+                    Text(viewModel.fqdn)
+                        .foregroundColor(Color("TextSecondary"))
+                        .font(.system(size: 15, weight: .bold))
+                        .opacity(fqdnCopied ? 0.7 : 1.0)
+                }
+                .padding(.horizontal, 16)
+                VPNConnectionView()
+                    .padding(.top, 15)
+                    .padding(.horizontal, 16)
+                if !viewModel.peerViewModel.peerInfo.isEmpty {
+                    ConnectedPeersView()
+                        .padding(.top, 20)
+                }
+                Spacer()
+            }
+        }
+    }
+
+    /*
+    var originalBody: some View {
         GeometryReader { geometry in
             let isLandscape = geometry.size.width > geometry.size.height
             let imageName = isLandscape ? "bg-bottom-landscape" : "bg-bottom"
@@ -69,7 +96,7 @@ struct iOSMainView: View {
                                 .ignoresSafeArea(.all)
                         }
                         VStack {
-                            
+
                             Image(imageName)
                                 .resizable(resizingMode: .stretch)
                                 .aspectRatio(contentMode: .fit)
@@ -78,7 +105,7 @@ struct iOSMainView: View {
                                 .padding(.leading, UIScreen.main.bounds.height * (isLandscape ? 0.04 : 0))
                                 .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
                                 .edgesIgnoringSafeArea(.bottom)
-                            
+
                         }
                         VStack {
                             Text(fqdnCopied ? "Copied" : viewModel.fqdn)
@@ -154,8 +181,6 @@ struct iOSMainView: View {
                             Text(viewModel.extensionStateText)
                                 .foregroundColor(Color("TextSecondary"))
                                 .font(.system(size: 24, weight: .regular))
-                            //                        ProfileSwitcherView(vm: viewModel)
-                            //                            .padding(.top, 3)
                             Spacer()
                         }
                         .padding()
@@ -185,7 +210,7 @@ struct iOSMainView: View {
                                 .onTapGesture {
                                     viewModel.showChangeServerAlert = false
                                 }
-                            
+
                             ChangeServerAlert(viewModel: viewModel, isPresented: $viewModel.showChangeServerAlert)
                                 .frame(maxWidth: UIScreen.main.bounds.width * 0.9)
                         }
@@ -195,7 +220,7 @@ struct iOSMainView: View {
                                 .onTapGesture {
                                     viewModel.showServerChangedInfo = false
                                 }
-                            
+
                             ChangeServerInfoAlert(viewModel: viewModel, isPresented: $viewModel.showServerChangedInfo)
                                 .frame(maxWidth: UIScreen.main.bounds.width * 0.9)
                         }
@@ -205,11 +230,11 @@ struct iOSMainView: View {
                                 .onTapGesture {
                                     viewModel.showPreSharedKeyChangedInfo = false
                                 }
-                            
+
                             ChangePreSharedKeyAlert(viewModel: viewModel, isPresented: $viewModel.showPreSharedKeyChangedInfo)
                                 .frame(maxWidth: UIScreen.main.bounds.width * 0.9)
                         }
-                        
+
                         if viewModel.showAuthenticationRequired && false {
                             Color.black.opacity(0.4)
                                 .edgesIgnoringSafeArea(.all)
@@ -220,7 +245,7 @@ struct iOSMainView: View {
                                         viewModel.buttonLock = false
                                     }
                                 }
-                            
+
                             AuthenticationAlert(viewModel: viewModel, isPresented: $viewModel.showAuthenticationRequired)
                                 .frame(maxWidth: UIScreen.main.bounds.width * 0.9)
                         }
@@ -247,7 +272,7 @@ struct iOSMainView: View {
                                         Spacer().frame(height: 40)
                                     }
                                 }
-                                
+
                                 if viewModel.showIpCopiedAlert {
                                     VStack {
                                         Spacer()
@@ -288,6 +313,7 @@ struct iOSMainView: View {
         }
         .navigationViewStyle(StackNavigationViewStyle())
     }
+    */
 }
 
 class KeyboardObserver: ObservableObject {

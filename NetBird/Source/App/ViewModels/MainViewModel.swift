@@ -10,6 +10,7 @@
 
 import SwiftUI
 import NetworkExtension
+import Network
 import os
 import Combine
 import NetBirdSDK
@@ -102,6 +103,10 @@ class ViewModel: ObservableObject {
     @Published var showForceRelayAlert = false
     @Published var showRosenpassChangedAlert = false
     @Published var networkUnavailable = false
+    @Published var isInternetConnected = true
+
+    private let networkMonitor = NWPathMonitor()
+    private let networkMonitorQueue = DispatchQueue(label: "NetworkMonitor")
 
     /// Platform-agnostic configuration provider.
     /// Abstracts iOS SDK preferences vs tvOS UserDefaults + IPC.
@@ -130,6 +135,13 @@ class ViewModel: ObservableObject {
 
         // forceRelayConnection uses UserDefaults (not SDK), so it's safe to load during init
         self.forceRelayConnection = self.getForcedRelayConnectionEnabled()
+
+        networkMonitor.pathUpdateHandler = { [weak self] path in
+            DispatchQueue.main.async {
+                self?.isInternetConnected = path.status == .satisfied
+            }
+        }
+        networkMonitor.start(queue: networkMonitorQueue)
 
         $setupKey
             .removeDuplicates()
