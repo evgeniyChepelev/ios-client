@@ -45,8 +45,8 @@ struct VPNConnectionView: View {
                 Text("Exit node")
                     .font(.system(size: 18, weight: .bold))
                     .foregroundColor(Color("TextSecondary"))
-
-                Text(viewModel.fqdn)
+                let text = viewModel.fqdn.replacingOccurrences(of: ".netbird.cloud", with: "")
+                Text(text)
                     .font(.system(size: 14, weight: .regular))
                     .foregroundColor(Color(.label))
                     .lineLimit(1)

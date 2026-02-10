@@ -61,7 +61,7 @@ struct iOSMainView: View {
                 VStack(alignment: .leading, spacing: 5) {
                     InternetStatusView()
                         .padding(.top, 10)
-                    Text(viewModel.fqdn)
+                    Text("netbird.cloud")
                         .foregroundColor(Color("TextSecondary"))
                         .font(.system(size: 15, weight: .bold))
                         .opacity(fqdnCopied ? 0.7 : 1.0)
