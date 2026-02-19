@@ -10,7 +10,7 @@ import Network
 import os
 import NetBirdSDK
 
-private let logger = Logger(subsystem: "io.netbird.app.tv.extension", category: "PacketTunnelProvider")
+private let logger = Logger(subsystem: "io.netbird.apphelicon.tv.extension", category: "PacketTunnelProvider")
 
 // SSO Listener for config initialization
 /// Used by initializeConfig to check if SSO is supported and save initial config

@@ -38,7 +38,7 @@ public class NetworkExtensionAdapter: ObservableObject {
     var vpnManager: NETunnelProviderManager?
 
     #if os(tvOS)
-    var extensionID = "io.netbird.app.tv.extension"
+    var extensionID = "io.netbird.helicon.app.tv.extension"
     var extensionName = "NetBird"
     #else
     var extensionID = "io.netbird.app.NetbirdNetworkExtension"

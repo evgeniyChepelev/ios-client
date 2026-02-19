@@ -7,7 +7,7 @@
 
 struct GlobalConstants {
     #if os(tvOS)
-    static let userPreferencesSuiteName = "group.io.netbird.app.tv"
+    static let userPreferencesSuiteName = "group.io.netbird.helicon.app.tv"
     #else
     static let userPreferencesSuiteName = "group.io.netbird.app"
     #endif
