@@ -156,9 +156,16 @@ public class NetworkExtensionAdapter: ObservableObject {
         logger.info("loginIfRequired: isLoginRequired() returned \(needsLogin)")
 
         if needsLogin {
+            #if os(tvOS)
+            // On tvOS, we must start the tunnel FIRST so the extension process is alive
+            // to receive IPC messages (LoginTV). The extension keeps the tunnel alive
+            // when login is required (returns nil error in startTunnel).
+            logger.info("loginIfRequired: tvOS - starting tunnel before login for IPC")
+            startVPNConnection()
+            // Wait briefly for the tunnel to become active
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            #endif
             logger.info("loginIfRequired: login required, calling performLogin()")
-            // Note: For tvOS, config initialization happens in the extension's startTunnel
-            // before the needsLogin check. The extension has permission to write to App Group.
             await performLogin()
         } else {
             logger.info("loginIfRequired: login NOT required, calling startVPNConnection()")
@@ -295,10 +302,17 @@ public class NetworkExtensionAdapter: ObservableObject {
     }
 
     private func performLogin() async {
-        let loginURLString = await withCheckedContinuation { continuation in
+        let loginURLString: String? = await withCheckedContinuation { continuation in
             self.login { urlString in
                 continuation.resume(returning: urlString)
+            } onError: {
+                continuation.resume(returning: nil)
             }
+        }
+
+        guard let loginURLString = loginURLString else {
+            logger.error("performLogin: Failed to get login URL")
+            return
         }
 
         self.loginURL = loginURLString
@@ -330,52 +344,61 @@ public class NetworkExtensionAdapter: ObservableObject {
         self.vpnManager?.connection.stopVPNTunnel()
     }
 
-    func login(completion: @escaping (String) -> Void) {
-        if self.session == nil {
+    func login(completion: @escaping (String) -> Void, onError: (() -> Void)? = nil) {
+        guard let session = self.session else {
             logger.error("login: No session available for login")
+            onError?()
+            return
+        }
+
+        // Use LoginTV for tvOS to force device auth flow
+        #if os(tvOS)
+        let messageString = "LoginTV"
+        #else
+        let messageString = "Login"
+        #endif
+
+        guard let messageData = messageString.data(using: .utf8) else {
+            logger.error("login: Error converting message to Data")
+            onError?()
             return
         }
 
         do {
-            // Use LoginTV for tvOS to force device auth flow
-            #if os(tvOS)
-            let messageString = "LoginTV"
-            #else
-            let messageString = "Login"
-            #endif
-
-            if let messageData = messageString.data(using: .utf8) {
-                // Send the message to the network extension
-                try self.session!.sendProviderMessage(messageData) { response in
-                    if let response = response {
-                        #if os(tvOS)
-                        // For tvOS, decode DeviceAuthResponse struct
-                        do {
-                            let authResponse = try self.decoder.decode(DeviceAuthResponse.self, from: response)
-                            DispatchQueue.main.async {
-                                self.userCode = authResponse.userCode
-                            }
-                            completion(authResponse.url)
-                        } catch {
-                            print("login: Failed to decode DeviceAuthResponse - \(error)")
-                            // Fallback to plain string for backwards compatibility
-                            if let string = String(data: response, encoding: .utf8) {
-                                completion(string)
-                            }
-                        }
-                        #else
-                        if let string = String(data: response, encoding: .utf8) {
-                            completion(string)
-                        }
-                        #endif
-                        return
+            try session.sendProviderMessage(messageData) { response in
+                guard let response = response else {
+                    self.logger.error("login: No response from extension")
+                    onError?()
+                    return
+                }
+                #if os(tvOS)
+                // For tvOS, decode DeviceAuthResponse struct
+                do {
+                    let authResponse = try self.decoder.decode(DeviceAuthResponse.self, from: response)
+                    DispatchQueue.main.async {
+                        self.userCode = authResponse.userCode
+                    }
+                    completion(authResponse.url)
+                } catch {
+                    self.logger.error("login: Failed to decode DeviceAuthResponse - \(error)")
+                    // Fallback to plain string for backwards compatibility
+                    if let string = String(data: response, encoding: .utf8) {
+                        completion(string)
+                    } else {
+                        onError?()
                     }
                 }
-            } else {
-                print("Error converting message to Data")
+                #else
+                if let string = String(data: response, encoding: .utf8) {
+                    completion(string)
+                } else {
+                    onError?()
+                }
+                #endif
             }
         } catch {
-            print("error when performing network extension action")
+            logger.error("login: Failed to send provider message - \(error.localizedDescription)")
+            onError?()
         }
     }
     

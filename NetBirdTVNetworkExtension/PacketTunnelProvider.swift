@@ -73,14 +73,10 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         let needsLogin = adapter.needsLogin()
 
         if needsLogin {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                let error = NSError(
-                    domain: "io.netbird.NetBirdTVNetworkExtension",
-                    code: 1001,
-                    userInfo: [NSLocalizedDescriptionKey: "Login required."]
-                )
-                completionHandler(error)
-            }
+            // Keep the tunnel alive so the app can send IPC messages (LoginTV, etc.)
+            // The tunnel won't route traffic until login completes and adapter.start() is called.
+            logger.info("startTunnel: Login required - keeping tunnel alive for IPC")
+            completionHandler(nil)
             return
         }
 

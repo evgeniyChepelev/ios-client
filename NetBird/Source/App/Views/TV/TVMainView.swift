@@ -89,17 +89,24 @@ struct TVMainView: View {
                             #endif
                             viewModel.networkExtensionAdapter.sendConfigToExtension(configJSON) { success in
                                 #if DEBUG
-                                print("Config transfer \(success ? "succeeded" : "failed"), starting VPN connection...")
+                                print("Config transfer \(success ? "succeeded" : "failed"), restarting VPN...")
                                 #endif
-                                // Start VPN only after config transfer completes
-                                viewModel.networkExtensionAdapter.startVPNConnection()
+                                // Stop the existing tunnel (which was kept alive for IPC)
+                                // then start fresh so the extension runs with the new config
+                                viewModel.networkExtensionAdapter.stop()
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                                    viewModel.networkExtensionAdapter.startVPNConnection()
+                                }
                             }
                         } else {
                             #if DEBUG
-                            print("No config found in UserDefaults, starting VPN anyway...")
+                            print("No config found in UserDefaults, restarting VPN anyway...")
                             #endif
-                            // Fallback - try to connect anyway (will likely fail but better than hanging)
-                            viewModel.networkExtensionAdapter.startVPNConnection()
+                            // Stop the existing tunnel then restart
+                            viewModel.networkExtensionAdapter.stop()
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                                viewModel.networkExtensionAdapter.startVPNConnection()
+                            }
                         }
                     },
                     onError: { errorMessage in
