@@ -160,18 +160,6 @@ struct iOSConnectionView: View {
                     }
                 }
 
-                // Safari login view — shown regardless of statusDetailsValid
-                if viewModel.networkExtensionAdapter.showBrowser,
-                   let loginURLString = viewModel.networkExtensionAdapter.loginURL,
-                   let loginURL = URL(string: loginURLString)
-                {
-                    SafariView(isPresented: $viewModel.networkExtensionAdapter.showBrowser,
-                               url: loginURL,
-                               didFinish: {
-                        print("Finish login")
-                        viewModel.networkExtensionAdapter.startVPNConnection()
-                    })
-                }
             }
         }
         .navigationBarTitleDisplayMode(.inline)

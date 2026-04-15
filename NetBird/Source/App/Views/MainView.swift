@@ -194,6 +194,19 @@ struct iOSMainView: View {
             .onChange(of: viewModel.showOnDemandDisconnectAlert) { show in
                 if show { activeAlert = .onDemandDisconnect; viewModel.showOnDemandDisconnectAlert = false }
             }
+            .fullScreenCover(isPresented: $viewModel.networkExtensionAdapter.showBrowser) {
+                if let loginURLString = viewModel.networkExtensionAdapter.loginURL,
+                   let loginURL = URL(string: loginURLString)
+                {
+                    SafariView(isPresented: $viewModel.networkExtensionAdapter.showBrowser,
+                               url: loginURL,
+                               didFinish: {
+                        print("Finish login")
+                        viewModel.networkExtensionAdapter.startVPNConnection()
+                    })
+                    .ignoresSafeArea()
+                }
+            }
 
             // Toast alerts
             VStack {
