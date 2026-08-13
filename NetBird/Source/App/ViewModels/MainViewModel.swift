@@ -1058,7 +1058,7 @@ class ViewModel: ObservableObject {
             return .error(message: "Failed to initialize client")
         }
         var sdkError: NSError?
-        let key = client.debugBundle(anonymize, error: &sdkError)
+        let key = client.debugBundle(anonymize, anonymizeLevel: NetBirdSDKAnonymizeLevelDefault, error: &sdkError)
         if let sdkError {
             return .error(message: sdkError.localizedDescription)
         }
