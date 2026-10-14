@@ -81,7 +81,12 @@ struct ProfilesScreen {
         }
         TabBar(app: app).open("Settings")
         let row = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Profiles'")).firstMatch
-        XCTAssertTrue(row.waitForExistence(timeout: 5), "no Profiles row in Settings")
+        // The app hides the row when an MDM policy disables profiles, so a
+        // missing row on a device that otherwise shows Settings is the policy,
+        // not a broken screen.
+        XCTAssertTrue(row.waitForExistence(timeout: 5),
+                      "no Profiles row in Settings — profile management is most likely disabled by an MDM policy on this device "
+                      + "(Settings → General → VPN & Device Management). Test devices must not be managed.")
         row.tap()
         XCTAssertTrue(app.navigationBars["Profiles"].waitForExistence(timeout: 5), "the Profiles screen did not open")
         return self
