@@ -252,6 +252,13 @@
 			remoteGlobalIDString = 55D865822F70982000A2EFF8;
 			remoteInfo = NetBirdWidgetExtensionExtension;
 		};
+		E2E000012F40000000000008 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 50A8910F2A792A15007C48FC /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 50A891162A792A15007C48FC;
+			remoteInfo = NetBird;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -419,6 +426,7 @@
 		F1B292062EE0AC25001D91B8 /* EnvVarPackager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnvVarPackager.swift; sourceTree = "<group>"; };
 		F1B292092EE0BC40001D91B8 /* GlobalConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalConstants.swift; sourceTree = "<group>"; };
 		F8BCB110545747678AA5A9C2 /* TVServerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVServerView.swift; sourceTree = "<group>"; };
+		E2E000012F40000000000001 /* NetBirdUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NetBirdUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -442,6 +450,7 @@
 		441C5AEF2EDF0DAE0055EEFC /* NetBird TV */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "NetBird TV"; sourceTree = "<group>"; };
 		441C5AFF2EDF0DD20055EEFC /* NetBirdTVNetworkExtension */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (441C5B072EDF0DD20055EEFC /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = NetBirdTVNetworkExtension; sourceTree = "<group>"; };
 		55D865882F70982000A2EFF8 /* NetBirdWidgetExtension */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (55D865992F70982100A2EFF8 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = NetBirdWidgetExtension; sourceTree = "<group>"; };
+		E2E000012F40000000000002 /* NetBirdUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = NetBirdUITests; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -511,6 +520,13 @@
 			files = (
 				1C4E6A81CD33FF6D2DEFF8D5 /* Foundation.framework in Frameworks */,
 				AA000C012F22000C00000001 /* NetBirdSDK.xcframework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E2E000012F40000000000005 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -614,6 +630,7 @@
 				50A891182A792A15007C48FC /* Products */,
 				50245A182A7BCE830034792B /* Frameworks */,
 				651C942641826A7AA94ED369 /* NetBirdTests */,
+				E2E000012F40000000000002 /* NetBirdUITests */,
 			);
 			sourceTree = "<group>";
 		};
@@ -625,6 +642,7 @@
 				441C5AEE2EDF0DAE0055EEFC /* NetBird TV.app */,
 				441C5AFD2EDF0DD20055EEFC /* NetBirdTVNetworkExtension.appex */,
 				50733EE9CE10FEDDA61600B8 /* NetBirdTests.xctest */,
+				E2E000012F40000000000001 /* NetBirdUITests.xctest */,
 				55D865832F70982000A2EFF8 /* NetBirdWidgetExtensionExtension.appex */,
 			);
 			name = Products;
@@ -927,6 +945,27 @@
 			productReference = 50733EE9CE10FEDDA61600B8 /* NetBirdTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		E2E000012F40000000000003 /* NetBirdUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E2E000012F40000000000009 /* Build configuration list for PBXNativeTarget "NetBirdUITests" */;
+			buildPhases = (
+				E2E000012F40000000000004 /* Sources */,
+				E2E000012F40000000000005 /* Frameworks */,
+				E2E000012F40000000000006 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				E2E000012F40000000000007 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				E2E000012F40000000000002 /* NetBirdUITests */,
+			);
+			name = NetBirdUITests;
+			productName = NetBirdUITests;
+			productReference = E2E000012F40000000000001 /* NetBirdUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -954,6 +993,10 @@
 					55D865822F70982000A2EFF8 = {
 						CreatedOnToolsVersion = 26.1.1;
 					};
+					E2E000012F40000000000003 = {
+						CreatedOnToolsVersion = 26.4;
+						TestTargetID = 50A891162A792A15007C48FC;
+					};
 				};
 			};
 			buildConfigurationList = 50A891122A792A15007C48FC /* Build configuration list for PBXProject "NetBird" */;
@@ -978,6 +1021,7 @@
 				441C5AED2EDF0DAE0055EEFC /* NetBird TV */,
 				441C5AFC2EDF0DD20055EEFC /* NetBirdTVNetworkExtension */,
 				C4BEBDBD1DC2C4D7764C202C /* NetBirdTests */,
+				E2E000012F40000000000003 /* NetBirdUITests */,
 				55D865822F70982000A2EFF8 /* NetBirdWidgetExtensionExtension */,
 			);
 		};
@@ -1048,6 +1092,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		867D87D69DACEF5CF82E9A1B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E2E000012F40000000000006 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -1300,6 +1351,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E2E000012F40000000000004 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -1323,6 +1381,11 @@
 			isa = PBXTargetDependency;
 			target = 55D865822F70982000A2EFF8 /* NetBirdWidgetExtensionExtension */;
 			targetProxy = 55D865962F70982100A2EFF8 /* PBXContainerItemProxy */;
+		};
+		E2E000012F40000000000007 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 50A891162A792A15007C48FC /* NetBird */;
+			targetProxy = E2E000012F40000000000008 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -1886,6 +1949,49 @@
 			};
 			name = Release;
 		};
+		E2E000012F4000000000000A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = TA739QLA7A;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = io.netbird.app.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = NetBird;
+			};
+			name = Debug;
+		};
+		E2E000012F4000000000000B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = TA739QLA7A;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = io.netbird.app.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = NetBird;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1948,6 +2054,15 @@
 			buildConfigurations = (
 				55D8659B2F70982100A2EFF8 /* Debug */,
 				55D8659C2F70982100A2EFF8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E2E000012F40000000000009 /* Build configuration list for PBXNativeTarget "NetBirdUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E2E000012F4000000000000A /* Debug */,
+				E2E000012F4000000000000B /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
