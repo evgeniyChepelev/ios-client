@@ -42,17 +42,24 @@ enum SystemAlerts {
 
     private static let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
 
-    /// Accepts a system alert owned by SpringBoard (notifications, VPN
-    /// configuration) if one is showing. The accepting button is the last one
-    /// in both, and matching by position keeps this independent of the
-    /// device's language.
+    /// The accepting button of the prompts the app triggers (notifications,
+    /// VPN configuration), in the languages a test device is likely to use.
+    private static let acceptLabels: Set<String> = ["Allow", "OK", "Разрешить", "Дозволити"]
+
+    /// Accepts a system alert owned by SpringBoard if one is showing. Matches
+    /// the button by label first, since its position differs between prompts
+    /// (Allow is on the left in the VPN prompt and on the right in the
+    /// notification one); falls back to the last button for an unknown
+    /// language.
     @discardableResult
     static func acceptIfPresent(timeout: TimeInterval = 1) -> Bool {
         let alert = springboard.alerts.firstMatch
         guard alert.waitForExistence(timeout: timeout) else { return false }
-        let buttons = alert.buttons
-        guard buttons.count > 0 else { return false }
-        buttons.element(boundBy: buttons.count - 1).tap()
+        let buttons = alert.buttons.allElementsBoundByIndex
+        guard let button = buttons.first(where: { acceptLabels.contains($0.label) }) ?? buttons.last else {
+            return false
+        }
+        button.tap()
         return true
     }
 }
