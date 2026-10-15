@@ -92,17 +92,51 @@ struct ProfilesScreen {
         return self
     }
 
-    /// The row of a profile that is not the active one.
-    func row(_ name: String) -> XCUIElement {
-        app.cells.containing(.staticText, identifier: name).firstMatch
+    /// A profile name as the list exposes it: alone as a text, or first in a
+    /// row's combined label ("default", "e2e-1a2b, https://…").
+    private func matches(_ name: String) -> NSPredicate {
+        NSPredicate(format: "label == %@ OR label BEGINSWITH %@", name, name + ",")
+    }
+
+    /// The row of the active profile — the one cell with the green "Active"
+    /// badge next to a name. The section header reads "Active" too, but holds
+    /// nothing else.
+    private var activeCell: XCUIElement? {
+        app.cells.allElementsBoundByIndex.first { cell in
+            cell.staticTexts["Active"].exists && cell.staticTexts.count > 1
+        }
     }
 
     var activeProfileName: String? {
-        // The Active section holds a single row: the name and a green "Active" badge.
-        let badge = app.staticTexts["Active"].firstMatch
-        guard badge.exists else { return nil }
-        let cell = app.cells.containing(.staticText, identifier: "Active").firstMatch
-        return cell.staticTexts.allElementsBoundByIndex.map(\.label).first { $0 != "Active" }
+        activeCell?.staticTexts.allElementsBoundByIndex
+            .map(\.label)
+            .first { $0 != "Active" && !$0.hasPrefix("http") }
+    }
+
+    /// The row of a profile under All Profiles — only those can be switched
+    /// to or removed. Nil if there is none within the timeout.
+    func row(_ name: String, timeout: TimeInterval = 5) -> XCUIElement? {
+        let deadline = Date().addingTimeInterval(timeout)
+        repeat {
+            let row = app.cells.containing(matches(name)).allElementsBoundByIndex
+                .first { !$0.staticTexts["Active"].exists }
+            if let row {
+                return row
+            }
+            Thread.sleep(forTimeInterval: 0.5)
+        } while Date() < deadline
+        return nil
+    }
+
+    private func waitUntil(timeout: TimeInterval, _ condition: () -> Bool) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        repeat {
+            if condition() {
+                return true
+            }
+            Thread.sleep(forTimeInterval: 0.5)
+        } while Date() < deadline
+        return false
     }
 
     /// Creates a profile on the default server (NetBird Cloud) and logs it in
@@ -137,23 +171,26 @@ struct ProfilesScreen {
             let errors = app.staticTexts.allElementsBoundByIndex.map(\.label).filter { !$0.isEmpty }
             XCTFail("the profile was not created within \(Int(timeout)) s; the sheet shows: \(errors.joined(separator: " | "))")
         }
-        XCTAssertTrue(row(name).waitForExistence(timeout: 5), "\(name) is not in the profile list")
+        XCTAssertNotNil(row(name), "\(name) is not in the profile list")
     }
 
     func switchTo(_ name: String) {
-        let target = row(name)
-        XCTAssertTrue(target.waitForExistence(timeout: 5), "no \(name) profile")
+        guard activeProfileName != name else { return }
+        guard let target = row(name) else {
+            XCTFail("no \(name) profile to switch to")
+            return
+        }
         target.tap()
         let alert = app.alerts["Switch Profile"]
         XCTAssertTrue(alert.waitForExistence(timeout: 5), "no Switch Profile confirmation")
         alert.buttons["Switch"].tap()
-        XCTAssertTrue(app.cells.containing(.staticText, identifier: name).containing(.staticText, identifier: "Active").firstMatch
-            .waitForExistence(timeout: 10), "\(name) did not become the active profile")
+        XCTAssertTrue(waitUntil(timeout: 10) { activeProfileName == name }, "\(name) did not become the active profile")
     }
 
+    /// Removes a profile that is not the active one; the app offers no Remove
+    /// on the active profile.
     func remove(_ name: String) {
-        let target = row(name)
-        guard target.waitForExistence(timeout: 2) else { return }
+        guard let target = row(name, timeout: 2) else { return }
         target.swipeLeft()
         let remove = app.buttons["Remove"]
         XCTAssertTrue(remove.waitForExistence(timeout: 3), "no Remove action on \(name)")
@@ -161,8 +198,7 @@ struct ProfilesScreen {
         let alert = app.alerts["Remove Profile"]
         XCTAssertTrue(alert.waitForExistence(timeout: 5), "no Remove Profile confirmation")
         alert.buttons["Remove"].tap()
-        let gone = NSPredicate(format: "exists == false")
-        _ = XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: gone, object: target)], timeout: 5)
+        XCTAssertTrue(waitUntil(timeout: 5) { row(name, timeout: 0) == nil }, "\(name) is still in the profile list")
     }
 
     private func textField(placeholder: String) -> XCUIElement {
@@ -171,8 +207,10 @@ struct ProfilesScreen {
 
     /// Profiles the earlier runs left behind, for instance after a failure.
     var leftoverTestProfiles: [String] {
-        app.staticTexts.allElementsBoundByIndex
-            .map(\.label)
+        let labels = (app.staticTexts.allElementsBoundByIndex + app.buttons.allElementsBoundByIndex).map(\.label)
+        let names = labels
+            .map { String($0.split(separator: ",").first ?? "") }
             .filter { $0.hasPrefix(Self.testProfilePrefix) }
+        return Array(Set(names)).sorted()
     }
 }

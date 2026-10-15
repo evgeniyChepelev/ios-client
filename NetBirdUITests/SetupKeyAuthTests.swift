@@ -22,6 +22,10 @@ final class SetupKeyAuthTests: XCTestCase {
     private var connection: ConnectionScreen!
     private var previousProfile = "default"
     private var testProfile = ""
+    /// Set as the last step of the test. XCTest's own testRun.hasSucceeded
+    /// still reads false inside tearDown, so it cannot tell a pass from a
+    /// failure there.
+    private var passed = false
 
     override func setUpWithError() throws {
         continueAfterFailure = false
@@ -32,12 +36,10 @@ final class SetupKeyAuthTests: XCTestCase {
     }
 
     override func tearDownWithError() throws {
-        guard testRun?.hasSucceeded == true, !testProfile.isEmpty else { return }
+        guard passed, !testProfile.isEmpty else { return }
         connection.disconnect()
         profiles.open()
-        if profiles.activeProfileName == testProfile {
-            profiles.switchTo(previousProfile)
-        }
+        profiles.switchTo(previousProfile)
         profiles.remove(testProfile)
     }
 
@@ -65,10 +67,13 @@ final class SetupKeyAuthTests: XCTestCase {
         screenshot.name = "Connected on \(testProfile)"
         screenshot.lifetime = .keepAlways
         add(screenshot)
+
+        passed = true
     }
 
-    /// Removes test profiles a failed run left behind, switching away from one
-    /// first if it is still active — an active profile cannot be removed.
+    /// Removes test profiles a failed run left behind. An active profile
+    /// cannot be removed, so a test profile that is still active is switched
+    /// away from first — to "default", which always exists.
     private func removeLeftovers() {
         profiles.open()
         let leftovers = profiles.leftoverTestProfiles
@@ -78,9 +83,9 @@ final class SetupKeyAuthTests: XCTestCase {
             if let active = profiles.activeProfileName, active.hasPrefix(ProfilesScreen.testProfilePrefix) {
                 connection.disconnect()
                 profiles.open()
-                profiles.switchTo(previousProfile)
+                profiles.switchTo("default")
             }
-            for name in profiles.leftoverTestProfiles where name != profiles.activeProfileName {
+            for name in leftovers {
                 profiles.remove(name)
             }
         }
