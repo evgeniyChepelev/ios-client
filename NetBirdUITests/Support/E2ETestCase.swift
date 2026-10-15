@@ -71,6 +71,15 @@ class E2ETestCase: XCTestCase {
         add(attachment)
     }
 
+    /// Force-quits the app and launches it again, as a user swiping it away
+    /// from the app switcher would.
+    func relaunch() {
+        app.terminate()
+        app = AppLaunch.toMainScreen(app)
+        profiles = ProfilesScreen(app: app)
+        connection = ConnectionScreen(app: app)
+    }
+
     var isSimulator: Bool {
         #if targetEnvironment(simulator)
         return true

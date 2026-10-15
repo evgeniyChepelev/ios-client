@@ -291,6 +291,13 @@ struct NewProfileSheet {
         app.staticTexts[text].exists
     }
 
+    /// Waits for a message that starts with the given text — server errors
+    /// carry the SDK's own wording after a fixed lead.
+    func waitForMessage(startingWith prefix: String, timeout: TimeInterval) -> String? {
+        let message = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", prefix)).firstMatch
+        return message.waitForExistence(timeout: timeout) ? message.label : nil
+    }
+
     var visibleTexts: [String] {
         app.staticTexts.allElementsBoundByIndex.map(\.label).filter { !$0.isEmpty }
     }

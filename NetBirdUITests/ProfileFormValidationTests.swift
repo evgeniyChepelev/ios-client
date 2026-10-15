@@ -79,6 +79,23 @@ final class ProfileFormValidationTests: E2ETestCase {
         markPassed()
     }
 
+    /// LOGIN-D06 — a well-formed key the server does not know is rejected by
+    /// the server: the sheet shows the server's answer under the key and no
+    /// profile is created. Needs the network.
+    func testD06_unknownSetupKeyIsRejectedByServer() {
+        let profile = newProfileName()
+        let sheet = openSheet()
+
+        // A random UUID: well-formed, but no account issued it.
+        sheet.fill(name: profile, setupKey: UUID().uuidString)
+        sheet.submit()
+
+        let message = sheet.waitForMessage(startingWith: "Review the setup key", timeout: 60)
+        XCTAssertNotNil(message, "the server's rejection of the key is not shown; the sheet shows: "
+                        + sheet.visibleTexts.joined(separator: " | "))
+        expectRejected(profile, sheet)
+    }
+
     // MARK: - Helpers
 
     private func openSheet() -> NewProfileSheet {
