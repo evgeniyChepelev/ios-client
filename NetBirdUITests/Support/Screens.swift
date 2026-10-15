@@ -172,38 +172,25 @@ struct ProfilesScreen {
     /// without one it is created signed out, and its first connect asks for
     /// an SSO login.
     func create(_ name: String, setupKey: String? = nil, timeout: TimeInterval = 60) {
+        let sheet = openNewProfileSheet()
+        sheet.fill(name: name, setupKey: setupKey)
+        sheet.submit()
+
+        // The sheet closes itself once the server accepted the profile; on an
+        // error it stays open with the message under the field.
+        if !sheet.waitUntilClosed(timeout: timeout) {
+            XCTFail("the profile was not created within \(Int(timeout)) s; the sheet shows: \(sheet.visibleTexts.joined(separator: " | "))")
+        }
+        XCTAssertNotNil(row(name), "\(name) is not in the profile list")
+    }
+
+    func openNewProfileSheet() -> NewProfileSheet {
         let add = app.navigationBars["Profiles"].buttons["Add"]
         XCTAssertTrue(add.waitForExistence(timeout: 5), "no add button on the Profiles screen")
         add.tap()
-
-        let sheet = app.navigationBars["New Profile"]
-        XCTAssertTrue(sheet.waitForExistence(timeout: 5), "the New Profile sheet did not open")
-
-        let nameField = textField(placeholder: "Profile name")
-        XCTAssertTrue(nameField.waitForExistence(timeout: 5), "no profile name field")
-        nameField.tap()
-        nameField.typeText(name)
-
-        if let setupKey {
-            app.buttons["Add this device with a setup key"].tap()
-            // The placeholder is an example key; it is the only stable handle the field has.
-            let keyField = textField(placeholder: "0EF79C2F-DEE1-419B-BFC8-1BF529332998")
-            XCTAssertTrue(keyField.waitForExistence(timeout: 5), "the setup key field did not appear")
-            keyField.tap()
-            keyField.typeText(setupKey)
-        }
-
-        sheet.buttons["Create"].tap()
-
-        // The sheet closes itself once the server accepted the key; on an
-        // error it stays open with the message under the field.
-        let closed = NSPredicate(format: "exists == false")
-        let result = XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: closed, object: sheet)], timeout: timeout)
-        if result != .completed {
-            let errors = app.staticTexts.allElementsBoundByIndex.map(\.label).filter { !$0.isEmpty }
-            XCTFail("the profile was not created within \(Int(timeout)) s; the sheet shows: \(errors.joined(separator: " | "))")
-        }
-        XCTAssertNotNil(row(name), "\(name) is not in the profile list")
+        let sheet = NewProfileSheet(app: app)
+        XCTAssertTrue(sheet.navigationBar.waitForExistence(timeout: 5), "the New Profile sheet did not open")
+        return sheet
     }
 
     /// Switches through the row and its confirmation alert. With
@@ -241,10 +228,6 @@ struct ProfilesScreen {
         XCTAssertTrue(waitUntil(timeout: 5) { row(name, timeout: 0) == nil }, "\(name) is still in the profile list")
     }
 
-    private func textField(placeholder: String) -> XCUIElement {
-        app.textFields.matching(NSPredicate(format: "placeholderValue == %@", placeholder)).firstMatch
-    }
-
     /// Profiles the earlier runs left behind, for instance after a failure.
     var leftoverTestProfiles: [String] {
         let labels = (app.staticTexts.allElementsBoundByIndex + app.buttons.allElementsBoundByIndex).map(\.label)
@@ -252,5 +235,73 @@ struct ProfilesScreen {
             .map { String($0.split(separator: ",").first ?? "") }
             .filter { $0.hasPrefix(Self.testProfilePrefix) }
         return Array(Set(names)).sorted()
+    }
+}
+
+/// The New Profile sheet: a name, a server URL (empty means NetBird Cloud) and
+/// an optional setup key.
+struct NewProfileSheet {
+    let app: XCUIApplication
+
+    var navigationBar: XCUIElement { app.navigationBars["New Profile"] }
+    var createButton: XCUIElement { navigationBar.buttons["Create"] }
+
+    var nameField: XCUIElement { textField(placeholder: "Profile name") }
+    var serverField: XCUIElement { textField(placeholder: "https://api.netbird.io") }
+    // The placeholder is an example key; it is the only stable handle the field has.
+    var setupKeyField: XCUIElement { textField(placeholder: "0EF79C2F-DEE1-419B-BFC8-1BF529332998") }
+
+    /// Types into the fields; nil leaves a field as it is. A setup key opens
+    /// the "Add this device with a setup key" section first.
+    func fill(name: String? = nil, server: String? = nil, setupKey: String? = nil) {
+        if let name {
+            type(name, into: nameField, "profile name")
+        }
+        if let server {
+            type(server, into: serverField, "server")
+        }
+        if let setupKey {
+            if !setupKeyField.exists {
+                app.buttons["Add this device with a setup key"].tap()
+            }
+            type(setupKey, into: setupKeyField, "setup key")
+        }
+    }
+
+    func submit() {
+        createButton.tap()
+    }
+
+    func cancel() {
+        navigationBar.buttons["Cancel"].tap()
+        XCTAssertTrue(waitUntilClosed(timeout: 5), "the New Profile sheet did not close")
+    }
+
+    func waitUntilClosed(timeout: TimeInterval) -> Bool {
+        let closed = NSPredicate(format: "exists == false")
+        return XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: closed, object: navigationBar)], timeout: timeout) == .completed
+    }
+
+    /// Waits for a message to be shown in the sheet, e.g. a field error.
+    func waitForMessage(_ text: String, timeout: TimeInterval = 5) -> Bool {
+        app.staticTexts[text].waitForExistence(timeout: timeout)
+    }
+
+    func showsMessage(_ text: String) -> Bool {
+        app.staticTexts[text].exists
+    }
+
+    var visibleTexts: [String] {
+        app.staticTexts.allElementsBoundByIndex.map(\.label).filter { !$0.isEmpty }
+    }
+
+    private func type(_ text: String, into field: XCUIElement, _ what: String) {
+        XCTAssertTrue(field.waitForExistence(timeout: 5), "no \(what) field")
+        field.tap()
+        field.typeText(text)
+    }
+
+    private func textField(placeholder: String) -> XCUIElement {
+        app.textFields.matching(NSPredicate(format: "placeholderValue == %@", placeholder)).firstMatch
     }
 }
