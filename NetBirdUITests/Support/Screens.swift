@@ -37,10 +37,20 @@ struct ConnectionScreen {
     }
 
     func connect(timeout: TimeInterval = 60) {
+        tapToggle()
+        waitForState("Connected", timeout: timeout, acceptingPrompts: true)
+    }
+
+    /// Taps the toggle on the Connection tab without waiting for any state.
+    func tapToggle() {
         TabBar(app: app).open("Connection")
         XCTAssertTrue(toggle.waitForExistence(timeout: 10), "no connect toggle")
         toggle.tap()
-        waitForState("Connected", timeout: timeout, acceptingPrompts: true)
+    }
+
+    /// The profile badge above the toggle; its label is the active profile's name.
+    func badge(_ name: String) -> XCUIElement {
+        app.buttons[name]
     }
 
     func disconnect(timeout: TimeInterval = 30) {
@@ -57,6 +67,10 @@ struct ConnectionScreen {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
             if (toggle.value as? String) == state {
+                return
+            }
+            if SignInAlert.isShowing {
+                XCTFail("the app asked to sign in while waiting for \(state)")
                 return
             }
             if acceptingPrompts && SystemAlerts.acceptIfPresent(timeout: 0.5) {
@@ -128,6 +142,20 @@ struct ProfilesScreen {
         return nil
     }
 
+    /// Everything a profile's row shows: the name, the server URL and, once
+    /// the profile has signed in with SSO, the account email. Works for the
+    /// active row and for the others, which expose it as one combined label.
+    func details(of name: String) -> [String] {
+        let cell = name == activeProfileName
+            ? activeCell
+            : row(name, timeout: 2)
+        guard let cell else { return [] }
+        let labels = (cell.staticTexts.allElementsBoundByIndex + cell.buttons.allElementsBoundByIndex).map(\.label)
+        let parts = labels.flatMap { $0.components(separatedBy: ", ") }
+        var seen = Set<String>()
+        return parts.filter { !$0.isEmpty && $0 != "Active" && seen.insert($0).inserted }
+    }
+
     private func waitUntil(timeout: TimeInterval, _ condition: () -> Bool) -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
         repeat {
@@ -139,9 +167,11 @@ struct ProfilesScreen {
         return false
     }
 
-    /// Creates a profile on the default server (NetBird Cloud) and logs it in
-    /// with a setup key, through the New Profile sheet.
-    func create(_ name: String, setupKey: String, timeout: TimeInterval = 60) {
+    /// Creates a profile on the default server (NetBird Cloud) through the New
+    /// Profile sheet. With a setup key the profile is logged in right away;
+    /// without one it is created signed out, and its first connect asks for
+    /// an SSO login.
+    func create(_ name: String, setupKey: String? = nil, timeout: TimeInterval = 60) {
         let add = app.navigationBars["Profiles"].buttons["Add"]
         XCTAssertTrue(add.waitForExistence(timeout: 5), "no add button on the Profiles screen")
         add.tap()
@@ -154,12 +184,14 @@ struct ProfilesScreen {
         nameField.tap()
         nameField.typeText(name)
 
-        app.buttons["Add this device with a setup key"].tap()
-        // The placeholder is an example key; it is the only stable handle the field has.
-        let keyField = textField(placeholder: "0EF79C2F-DEE1-419B-BFC8-1BF529332998")
-        XCTAssertTrue(keyField.waitForExistence(timeout: 5), "the setup key field did not appear")
-        keyField.tap()
-        keyField.typeText(setupKey)
+        if let setupKey {
+            app.buttons["Add this device with a setup key"].tap()
+            // The placeholder is an example key; it is the only stable handle the field has.
+            let keyField = textField(placeholder: "0EF79C2F-DEE1-419B-BFC8-1BF529332998")
+            XCTAssertTrue(keyField.waitForExistence(timeout: 5), "the setup key field did not appear")
+            keyField.tap()
+            keyField.typeText(setupKey)
+        }
 
         sheet.buttons["Create"].tap()
 
@@ -174,7 +206,10 @@ struct ProfilesScreen {
         XCTAssertNotNil(row(name), "\(name) is not in the profile list")
     }
 
-    func switchTo(_ name: String) {
+    /// Switches through the row and its confirmation alert. With
+    /// `checkingMessage` the alert's text is checked against the wording the
+    /// user is shown.
+    func switchTo(_ name: String, checkingMessage: Bool = false) {
         guard activeProfileName != name else { return }
         guard let target = row(name) else {
             XCTFail("no \(name) profile to switch to")
@@ -183,6 +218,11 @@ struct ProfilesScreen {
         target.tap()
         let alert = app.alerts["Switch Profile"]
         XCTAssertTrue(alert.waitForExistence(timeout: 5), "no Switch Profile confirmation")
+        if checkingMessage {
+            let expected = "VPN will be disconnected to switch to \u{00AB}\(name)\u{00BB}. Continue?"
+            XCTAssertTrue(alert.staticTexts[expected].exists,
+                          "the Switch Profile alert does not read: \(expected)")
+        }
         alert.buttons["Switch"].tap()
         XCTAssertTrue(waitUntil(timeout: 10) { activeProfileName == name }, "\(name) did not become the active profile")
     }
