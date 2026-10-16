@@ -2,7 +2,7 @@
 //  LoginBaselineTests.swift
 //  NetBirdUITests
 //
-//  Section S of the login test plan (docs/login-ui-test-cases.md): the
+//  Section S of the login UI test plan (login-ui-test-cases.md): the
 //  everyday flows, one case each.
 //
 
@@ -54,14 +54,7 @@ final class LoginBaselineTests: E2ETestCase {
         // saved there.
         if !isSimulator {
             step("Connect asks for a login, which is cancelled") {
-                connection.tapToggle()
-                // The first connect after an install also asks to add the VPN
-                // configuration; accept that while waiting for the sign-in alert.
-                let deadline = Date().addingTimeInterval(30)
-                while !SignInAlert.isShowing && Date() < deadline {
-                    SystemAlerts.acceptIfPresent(timeout: 1)
-                }
-                XCTAssertTrue(SignInAlert.isShowing, "connecting a new profile did not ask for a login within 30 s")
+                XCTAssertTrue(connectExpectingLogin(), "connecting a new profile did not ask for a login within 30 s")
                 screenshot("Sign-in asked for \(profile)")
                 SignInAlert.cancel()
                 XCTAssertNotEqual(connection.toggle.value as? String, "Connected",

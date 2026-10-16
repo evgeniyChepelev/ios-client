@@ -80,6 +80,30 @@ class E2ETestCase: XCTestCase {
         connection = ConnectionScreen(app: app)
     }
 
+    /// Taps Connect and waits for the app to ask for an SSO login, accepting
+    /// the VPN configuration prompt a first connect after an install shows.
+    /// Returns whether the sign-in alert appeared; it is left on screen.
+    @discardableResult
+    func connectExpectingLogin(timeout: TimeInterval = 30) -> Bool {
+        connection.tapToggle()
+        let deadline = Date().addingTimeInterval(timeout)
+        while !SignInAlert.isShowing && Date() < deadline {
+            if (connection.toggle.value as? String) == "Connected" {
+                return false
+            }
+            SystemAlerts.acceptIfPresent(timeout: 1)
+        }
+        return SignInAlert.isShowing
+    }
+
+    /// Skips a test that needs to connect: VPN configurations cannot be saved
+    /// in the Simulator, so Connect does nothing there.
+    func requireDevice() throws {
+        if isSimulator {
+            throw XCTSkip("connecting needs a physical device")
+        }
+    }
+
     var isSimulator: Bool {
         #if targetEnvironment(simulator)
         return true
