@@ -94,13 +94,26 @@ struct ProfilesScreen {
             return self
         }
         TabBar(app: app).open("Settings")
+        // The Settings tab keeps its navigation stack: if Profiles was opened
+        // earlier in this launch, the tab comes back on it.
+        let profilesBar = app.navigationBars["Profiles"]
         let row = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Profiles'")).firstMatch
+        let deadline = Date().addingTimeInterval(5)
+        while !profilesBar.exists && !row.exists && Date() < deadline {
+            Thread.sleep(forTimeInterval: 0.3)
+        }
+        if profilesBar.exists {
+            return self
+        }
         // The app hides the row when an MDM policy disables profiles, so a
-        // missing row on a device that otherwise shows Settings is the policy,
-        // not a broken screen.
-        XCTAssertTrue(row.waitForExistence(timeout: 5),
-                      "no Profiles row in Settings — profile management is most likely disabled by an MDM policy on this device "
-                      + "(Settings → General → VPN & Device Management). Test devices must not be managed.")
+        // missing row on the Settings screen itself is the policy, not a
+        // broken screen.
+        if !row.exists && app.navigationBars["Settings"].exists {
+            XCTFail("no Profiles row in Settings — profile management is most likely disabled by an MDM policy on this "
+                    + "device (Settings → General → VPN & Device Management). Test devices must not be managed.")
+            return self
+        }
+        XCTAssertTrue(row.exists, "the Settings tab shows neither its main screen nor Profiles")
         row.tap()
         XCTAssertTrue(app.navigationBars["Profiles"].waitForExistence(timeout: 5), "the Profiles screen did not open")
         return self
