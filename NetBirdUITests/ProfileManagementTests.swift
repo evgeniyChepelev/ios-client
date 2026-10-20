@@ -55,6 +55,32 @@ final class ProfileManagementTests: E2ETestCase {
         markPassed()
     }
 
+    /// LOGIN-F04 — logging one profile out leaves another signed in: the
+    /// other still connects without a login, while the logged-out one asks.
+    func testF04_logoutOfOneProfileLeavesTheOtherSignedIn() throws {
+        try requireDevice()
+        let first = try createSignedInProfile()
+        let second = try createSignedInProfile()
+
+        step("Log \(first) out") {
+            profiles.logout(first)
+        }
+
+        step("\(second) still connects without a login") {
+            profiles.switchTo(second)
+            connectWithoutLogin()
+            connection.disconnect()
+        }
+
+        step("\(first) asks for a login") {
+            profiles.open()
+            profiles.switchTo(first)
+            XCTAssertTrue(connectExpectingLogin(), "the logged-out \(first) connected without asking for a login")
+            SignInAlert.cancel()
+        }
+        markPassed()
+    }
+
     /// LOGIN-F05 — neither the default profile nor the active one can be
     /// removed. The app does not offer the action at all: the default row's
     /// swipe actions hold Logout but no Remove, and the active row has none.

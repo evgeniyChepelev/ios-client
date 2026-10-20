@@ -48,6 +48,17 @@ struct ConnectionScreen {
         toggle.tap()
     }
 
+    /// The peer's NetBird name under the status once connected, e.g.
+    /// "iphone-1a2b.netbird.cloud": a host name of at least three labels.
+    var fqdn: XCUIElement {
+        app.staticTexts.matching(NSPredicate(format: "label MATCHES %@", "^[A-Za-z0-9-]*[A-Za-z][A-Za-z0-9-]*(\\.[A-Za-z0-9-]+){2,}$")).firstMatch
+    }
+
+    /// The peer's NetBird address, from the 100.64.0.0/10 range NetBird assigns.
+    var ip: XCUIElement {
+        app.staticTexts.matching(NSPredicate(format: "label MATCHES %@", "^100\\.[0-9]+\\.[0-9]+\\.[0-9]+.*$")).firstMatch
+    }
+
     /// The profile badge above the toggle; its label is the active profile's name.
     func badge(_ name: String) -> XCUIElement {
         app.buttons[name]
@@ -225,6 +236,33 @@ struct ProfilesScreen {
         }
         alert.buttons["Switch"].tap()
         XCTAssertTrue(waitUntil(timeout: 10) { activeProfileName == name }, "\(name) did not become the active profile")
+    }
+
+    /// Logs a profile out through its row's swipe action. The app offers
+    /// Logout only on profiles that are not active, so switch away first.
+    /// With `checkingMessage` the confirmation text is checked too.
+    func logout(_ name: String, checkingMessage: Bool = false) {
+        guard let target = row(name) else {
+            XCTFail("no \(name) profile to log out")
+            return
+        }
+        target.swipeLeft()
+        let action = app.buttons["Logout"]
+        XCTAssertTrue(action.waitForExistence(timeout: 3), "no Logout action on \(name)")
+        action.tap()
+
+        let alert = app.alerts["Logout from Profile"]
+        XCTAssertTrue(alert.waitForExistence(timeout: 5), "no Logout from Profile confirmation")
+        if checkingMessage {
+            let expected = "You will need to re-authenticate to use profile \u{00AB}\(name)\u{00BB} again."
+            XCTAssertTrue(alert.staticTexts[expected].exists, "the Logout alert does not read: \(expected)")
+        }
+        alert.buttons["Logout"].tap()
+
+        let gone = NSPredicate(format: "exists == false")
+        _ = XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: gone, object: alert)], timeout: 5)
+        XCTAssertFalse(app.alerts["Error"].waitForExistence(timeout: 2),
+                       "logging \(name) out failed: \(app.alerts["Error"].staticTexts.allElementsBoundByIndex.map(\.label))")
     }
 
     /// Removes a profile that is not the active one; the app offers no Remove

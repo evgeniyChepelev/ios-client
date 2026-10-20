@@ -10,6 +10,44 @@ import XCTest
 
 final class LoginBaselineTests: E2ETestCase {
 
+    /// LOGIN-S02 — Basic logout.
+    ///
+    /// A signed-in profile is used, then logged out from the profile list.
+    /// The app offers Logout only on profiles that are not active, so the test
+    /// switches back to the starting profile first. After the logout the
+    /// profile keeps its server, and its next connect asks for a login again.
+    ///
+    /// The plan's profile signs in with SSO and checks its account email
+    /// disappears; a setup-key profile has no email to lose, so that check is
+    /// replaced by the login being asked for again.
+    func testS02_basicLogout() throws {
+        try requireDevice()
+        let profile = try createSignedInProfile()
+
+        step("Use \(profile): it connects without a login") {
+            profiles.switchTo(profile)
+            connectWithoutLogin()
+            connection.disconnect()
+        }
+
+        step("Switch back to \(startingProfile) and log \(profile) out") {
+            profiles.open()
+            profiles.switchTo(startingProfile)
+            profiles.logout(profile, checkingMessage: true)
+            let details = profiles.details(of: profile)
+            XCTAssertTrue(details.contains { $0.contains("api.netbird.io") },
+                          "the logged-out profile lost its server: \(details)")
+        }
+        screenshot("After logging \(profile) out")
+
+        step("Connecting \(profile) asks for a login again") {
+            profiles.switchTo(profile)
+            XCTAssertTrue(connectExpectingLogin(), "a logged-out profile connected without asking for a login")
+            SignInAlert.cancel()
+        }
+        markPassed()
+    }
+
     /// LOGIN-S03 — Switch to a newly created profile.
     ///
     /// Creates a profile without a setup key, checks that creating it does not
