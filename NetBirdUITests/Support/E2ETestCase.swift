@@ -96,6 +96,56 @@ class E2ETestCase: XCTestCase {
         return SignInAlert.isShowing
     }
 
+    /// Creates a profile logged in with the setup key from NB_SETUP_KEY — the
+    /// stand-in for the plan's "authenticated profile", made through the UI
+    /// rather than seeded, since the app is not modified for testing.
+    func createSignedInProfile() throws -> String {
+        let setupKey = try TestSecrets.value("NB_SETUP_KEY")
+        let profile = newProfileName()
+        step("Create \(profile), signed in with the setup key") {
+            profiles.open()
+            profiles.create(profile, setupKey: setupKey)
+        }
+        return profile
+    }
+
+    /// Creates a profile on NetBird Cloud without a setup key: it has never
+    /// signed in, so connecting it asks for an SSO login.
+    func createSignedOutProfile() -> String {
+        let profile = newProfileName()
+        step("Create \(profile), signed out") {
+            profiles.open()
+            profiles.create(profile)
+        }
+        return profile
+    }
+
+    /// Watches the toggle for a while: it must settle on Disconnected and
+    /// never reach Connected.
+    func expectStaysDisconnected(for seconds: TimeInterval,
+                                 file: StaticString = #filePath, line: UInt = #line) {
+        let deadline = Date().addingTimeInterval(seconds)
+        var last = ""
+        while Date() < deadline {
+            last = connection.toggle.value as? String ?? ""
+            if last == "Connected" {
+                XCTFail("the VPN connected without a login", file: file, line: line)
+                return
+            }
+            Thread.sleep(forTimeInterval: 0.5)
+        }
+        XCTAssertEqual(last, "Disconnected", "the VPN did not settle on Disconnected", file: file, line: line)
+    }
+
+    /// Connects and checks it got there with no login asked for and no
+    /// login error.
+    func connectWithoutLogin(file: StaticString = #filePath, line: UInt = #line) {
+        connection.connect()
+        XCTAssertEqual(connection.toggle.value as? String, "Connected", "not connected", file: file, line: line)
+        XCTAssertFalse(SignInAlert.isShowing, "a login was asked for", file: file, line: line)
+        XCTAssertFalse(app.alerts["Login failed"].exists, "a login error is shown", file: file, line: line)
+    }
+
     /// Skips a test that needs to connect: VPN configurations cannot be saved
     /// in the Simulator, so Connect does nothing there.
     func requireDevice() throws {

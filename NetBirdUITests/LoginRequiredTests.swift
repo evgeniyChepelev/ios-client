@@ -37,4 +37,49 @@ final class LoginRequiredTests: E2ETestCase {
 
         markPassed()
     }
+
+    // LOGIN-A02 (a signed-in profile connects without a browser) is what
+    // E2E-001, SetupKeyAuthTests.testLoginWithSetupKeyViaUi, checks: it fails
+    // if the sign-in alert shows up on the way to Connected.
+
+    /// LOGIN-A03 — reconnecting after a clean disconnect does not ask for a
+    /// login again.
+    func testA03_reconnectStaysWithoutLogin() throws {
+        try requireDevice()
+        let profile = try createSignedInProfile()
+
+        step("Switch to \(profile) and connect") {
+            profiles.switchTo(profile)
+            connectWithoutLogin()
+        }
+        step("Disconnect") {
+            connection.disconnect()
+        }
+        step("Connect again, still without a login") {
+            connectWithoutLogin()
+        }
+        screenshot("Reconnected on \(profile)")
+        markPassed()
+    }
+
+    /// LOGIN-A04 — repeated connect cycles do not degrade: three in a row all
+    /// reach Connected, with no login asked for and no login error.
+    ///
+    /// The management server bans a peer after 30 logins within 5 minutes.
+    /// Three cycles stay well inside that; if a regression brings back
+    /// redundant logins, this is where a ban would show first — as a cycle
+    /// that stops connecting partway through.
+    func testA04_repeatedConnectCyclesDoNotDegrade() throws {
+        try requireDevice()
+        let profile = try createSignedInProfile()
+        profiles.switchTo(profile)
+
+        for cycle in 1...3 {
+            step("Cycle \(cycle): connect, then disconnect") {
+                connectWithoutLogin()
+                connection.disconnect()
+            }
+        }
+        markPassed()
+    }
 }

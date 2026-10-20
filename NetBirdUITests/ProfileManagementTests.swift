@@ -9,6 +9,52 @@ import XCTest
 
 final class ProfileManagementTests: E2ETestCase {
 
+    /// LOGIN-F01 — switching to a profile that has not signed in asks for a
+    /// login on connect, even right after a signed-in profile was in use.
+    func testF01_switchingToSignedOutProfileAsksForLogin() throws {
+        try requireDevice()
+        let signedIn = try createSignedInProfile()
+        let signedOut = createSignedOutProfile()
+
+        step("Use \(signedIn) first") {
+            profiles.switchTo(signedIn)
+            connectWithoutLogin()
+        }
+
+        step("Switch to \(signedOut) and connect: a login is asked for") {
+            profiles.open()
+            profiles.switchTo(signedOut)
+            XCTAssertTrue(connectExpectingLogin(), "connecting \(signedOut) did not ask for a login within 30 s")
+            screenshot("Sign-in asked for \(signedOut)")
+            SignInAlert.cancel()
+            expectStaysDisconnected(for: 3)
+        }
+        markPassed()
+    }
+
+    /// LOGIN-F02 — switching back to a signed-in profile connects without a
+    /// login: the signed-out profile's cancelled login does not leak into it.
+    func testF02_switchingBackToSignedInProfileNeedsNoLogin() throws {
+        try requireDevice()
+        let signedIn = try createSignedInProfile()
+        let signedOut = createSignedOutProfile()
+
+        step("Ask for a login on \(signedOut) and cancel it") {
+            profiles.switchTo(signedOut)
+            XCTAssertTrue(connectExpectingLogin(), "connecting \(signedOut) did not ask for a login within 30 s")
+            SignInAlert.cancel()
+            expectStaysDisconnected(for: 3)
+        }
+
+        step("Switch back to \(signedIn) and connect without a login") {
+            profiles.open()
+            profiles.switchTo(signedIn)
+            connectWithoutLogin()
+        }
+        screenshot("Connected on \(signedIn)")
+        markPassed()
+    }
+
     /// LOGIN-F05 — neither the default profile nor the active one can be
     /// removed. The app does not offer the action at all: the default row's
     /// swipe actions hold Logout but no Remove, and the active row has none.

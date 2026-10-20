@@ -67,35 +67,39 @@ final class LoginBrowserTests: E2ETestCase {
         markPassed()
     }
 
+    /// LOGIN-B03 — repeated cancellations leave nothing behind: every attempt
+    /// asks for the login again, the VPN never leaves Disconnected and no
+    /// error piles up.
+    func testB03_repeatedCancellationsLeaveNoResidue() throws {
+        try requireDevice()
+        _ = signedOutProfileAsked()
+
+        for attempt in 1...4 {
+            step("Attempt \(attempt): cancel the sign-in") {
+                if attempt > 1 {
+                    XCTAssertTrue(connectExpectingLogin(timeout: 60),
+                                  "attempt \(attempt) did not ask for a login within 60 s")
+                }
+                SignInAlert.cancel()
+                expectStaysDisconnected(for: 3)
+                XCTAssertEqual(app.alerts.count, 0,
+                               "an alert is left after attempt \(attempt): \(app.alerts.firstMatch.label)")
+            }
+        }
+        screenshot("After four cancelled logins")
+        markPassed()
+    }
+
     // MARK: - Helpers
 
     /// Creates a signed-out profile, switches to it and taps Connect, leaving
     /// the sign-in alert on screen.
     private func signedOutProfileAsked() -> String {
-        let profile = newProfileName()
-        step("Create \(profile) without a setup key, switch to it and connect") {
-            profiles.open()
-            profiles.create(profile)
+        let profile = createSignedOutProfile()
+        step("Switch to \(profile) and connect") {
             profiles.switchTo(profile)
             XCTAssertTrue(connectExpectingLogin(), "connecting \(profile) did not ask for a login within 30 s")
         }
         return profile
-    }
-
-    /// Watches the toggle for a while: it must settle on Disconnected and
-    /// never reach Connected.
-    private func expectStaysDisconnected(for seconds: TimeInterval,
-                                         file: StaticString = #filePath, line: UInt = #line) {
-        let deadline = Date().addingTimeInterval(seconds)
-        var last = ""
-        while Date() < deadline {
-            last = connection.toggle.value as? String ?? ""
-            if last == "Connected" {
-                XCTFail("the VPN connected after the login was cancelled", file: file, line: line)
-                return
-            }
-            Thread.sleep(forTimeInterval: 0.5)
-        }
-        XCTAssertEqual(last, "Disconnected", "the VPN did not settle on Disconnected", file: file, line: line)
     }
 }
