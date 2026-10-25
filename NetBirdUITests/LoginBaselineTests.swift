@@ -48,6 +48,58 @@ final class LoginBaselineTests: E2ETestCase {
         markPassed()
     }
 
+    /// LOGIN-S04 — Switch between existing profiles.
+    ///
+    /// Two signed-in profiles: a cancelled switch changes nothing, a confirmed
+    /// one disconnects and makes the other profile active, and both connect
+    /// without a login on the way there and back.
+    func testS04_switchBetweenExistingProfiles() throws {
+        try requireDevice()
+        let first = try createSignedInProfile()
+        let second = try createSignedInProfile()
+
+        step("Connect \(first)") {
+            profiles.switchTo(first)
+            connectWithoutLogin()
+        }
+
+        step("A cancelled switch to \(second) changes nothing") {
+            profiles.open()
+            profiles.cancelSwitch(to: second)
+            XCTAssertEqual(profiles.activeProfileName, first, "the active profile changed despite Cancel")
+            XCTAssertEqual(connection.toggle.value as? String, "Connected", "the VPN dropped despite Cancel")
+        }
+
+        step("Switching to \(second) disconnects and makes it active") {
+            profiles.open()
+            profiles.switchTo(second)
+            TabBar(app: app).open("Connection")
+            XCTAssertTrue(connection.badge(second).waitForExistence(timeout: 5), "the badge does not read \(second)")
+            let disconnected = NSPredicate(format: "value == %@", "Disconnected")
+            XCTAssertEqual(XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: disconnected, object: connection.toggle)],
+                                            timeout: 15), .completed, "the VPN did not disconnect on the switch")
+        }
+
+        step("\(second) connects without a login") {
+            connectWithoutLogin()
+        }
+
+        step("Back to \(first): it connects without a login too") {
+            profiles.open()
+            profiles.switchTo(first)
+            connectWithoutLogin()
+        }
+
+        step("Each profile keeps its server") {
+            profiles.open()
+            for name in [first, second] {
+                XCTAssertTrue(profiles.details(of: name).contains { $0.contains("api.netbird.io") },
+                              "\(name) lost its server")
+            }
+        }
+        markPassed()
+    }
+
     /// LOGIN-S03 — Switch to a newly created profile.
     ///
     /// Creates a profile without a setup key, checks that creating it does not

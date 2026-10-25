@@ -116,6 +116,14 @@ struct ProfilesScreen {
         if profilesBar.exists {
             return self
         }
+        // Back on some other screen pushed inside Settings: return to its root.
+        if !row.exists && !app.navigationBars["Settings"].exists {
+            let back = app.navigationBars.buttons.element(boundBy: 0)
+            if back.exists {
+                back.tap()
+                _ = row.waitForExistence(timeout: 3)
+            }
+        }
         // The app hides the row when an MDM policy disables profiles, so a
         // missing row on the Settings screen itself is the policy, not a
         // broken screen.
@@ -236,6 +244,21 @@ struct ProfilesScreen {
         }
         alert.buttons["Switch"].tap()
         XCTAssertTrue(waitUntil(timeout: 10) { activeProfileName == name }, "\(name) did not become the active profile")
+    }
+
+    /// Taps a profile's row and answers Cancel in the confirmation: nothing
+    /// may change.
+    func cancelSwitch(to name: String) {
+        guard let target = row(name) else {
+            XCTFail("no \(name) profile")
+            return
+        }
+        target.tap()
+        let alert = app.alerts["Switch Profile"]
+        XCTAssertTrue(alert.waitForExistence(timeout: 5), "no Switch Profile confirmation")
+        alert.buttons["Cancel"].tap()
+        let gone = NSPredicate(format: "exists == false")
+        _ = XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: gone, object: alert)], timeout: 5)
     }
 
     /// Logs a profile out through its row's swipe action. The app offers
@@ -361,5 +384,39 @@ struct NewProfileSheet {
 
     private func textField(placeholder: String) -> XCUIElement {
         app.textFields.matching(NSPredicate(format: "placeholderValue == %@", placeholder)).firstMatch
+    }
+}
+
+/// Settings → VPN On Demand.
+struct OnDemandScreen {
+    let app: XCUIApplication
+
+    var toggle: XCUIElement { app.switches["VPN On Demand"] }
+
+    var isOn: Bool { (toggle.value as? String) == "1" }
+
+    @discardableResult
+    func open() -> OnDemandScreen {
+        if app.navigationBars["VPN On Demand"].exists {
+            return self
+        }
+        TabBar(app: app).open("Settings")
+        if app.navigationBars["Settings"].waitForExistence(timeout: 3) == false {
+            // The tab came back on a pushed screen; go back to its root.
+            app.navigationBars.buttons.element(boundBy: 0).tap()
+        }
+        let row = app.buttons["VPN On Demand"]
+        XCTAssertTrue(row.waitForExistence(timeout: 5), "no VPN On Demand row in Settings")
+        row.tap()
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5), "the VPN On Demand screen did not open")
+        return self
+    }
+
+    func set(_ on: Bool) {
+        guard isOn != on else { return }
+        // A SwiftUI switch takes the tap on its knob, at the right edge.
+        toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        let target = NSPredicate(format: "value == %@", on ? "1" : "0")
+        _ = XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: target, object: toggle)], timeout: 5)
     }
 }

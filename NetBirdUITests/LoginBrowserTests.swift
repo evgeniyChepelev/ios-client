@@ -96,6 +96,37 @@ final class LoginBrowserTests: E2ETestCase {
         markPassed()
     }
 
+    /// LOGIN-B04 — sending the app to the background while the sign-in alert
+    /// is up leaves a consistent state: either the alert is still there or the
+    /// login was dropped, and in both cases Connect asks for a login again.
+    func testB04_backgroundingDuringTheLoginAlert() throws {
+        try requireDevice()
+        _ = signedOutProfileAsked()
+
+        step("Background the app for 5 s and bring it back") {
+            XCUIDevice.shared.press(.home)
+            Thread.sleep(forTimeInterval: 5)
+            app.activate()
+            XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10), "the app did not come back to the foreground")
+        }
+
+        step("The state is consistent") {
+            let alertKept = SignInAlert.isShowing
+            XCTContext.runActivity(named: alertKept ? "The sign-in alert is still up" : "The login was dropped") { _ in }
+            screenshot("After coming back")
+            if alertKept {
+                SignInAlert.cancel()
+            }
+            expectStaysDisconnected(for: 3)
+        }
+
+        step("Connect still asks for a login") {
+            XCTAssertTrue(connectExpectingLogin(timeout: 60), "Connect is stuck after coming back from the background")
+            SignInAlert.cancel()
+        }
+        markPassed()
+    }
+
     // MARK: - Helpers
 
     /// Creates a signed-out profile, switches to it and taps Connect, leaving

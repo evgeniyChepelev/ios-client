@@ -38,6 +38,11 @@ final class LoginRequiredTests: E2ETestCase {
         markPassed()
     }
 
+    // LOGIN-A05 (an unreachable server never reports Connected) cannot be
+    // set up through the UI: the plan seeds a profile pointing at an
+    // unroutable server, but the app only saves a server it can reach — the
+    // attempt is LOGIN-E03, which checks that it is refused.
+
     // LOGIN-A02 (a signed-in profile connects without a browser) is what
     // E2E-001, SetupKeyAuthTests.testLoginWithSetupKeyViaUi, checks: it fails
     // if the sign-in alert shows up on the way to Connected.
