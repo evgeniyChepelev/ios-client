@@ -43,11 +43,60 @@ struct ConnectionScreen {
         waitForState("Connected", timeout: timeout, acceptingPrompts: true)
     }
 
-    /// Taps the toggle on the Connection tab without waiting for any state.
+    /// Taps the toggle on the Connection tab and makes sure the tap was taken.
+    ///
+    /// Right after a profile switch the toggle is locked for a few seconds
+    /// while the old connection winds down, and a tap in that window is
+    /// dropped without a trace. So the tap waits for Disconnecting to pass,
+    /// and is repeated when nothing reacts to it: the state leaving
+    /// Disconnected, the sign-in alert, or a system prompt. The last retry
+    /// first switches tabs, so the toggle is redrawn with its current lock.
+    /// How many taps it took is recorded with the result.
     func tapToggle() {
         TabBar(app: app).open("Connection")
         XCTAssertTrue(toggle.waitForExistence(timeout: 10), "no connect toggle")
-        toggle.tap()
+        let before = toggle.value as? String ?? ""
+        waitWhileDisconnecting()
+
+        for attempt in 1...4 {
+            if attempt == 4 {
+                TabBar(app: app).open("Peers")
+                TabBar(app: app).open("Connection")
+            }
+            toggle.tap()
+            if reacted(from: before, within: 8) {
+                if attempt > 1 {
+                    XCTContext.runActivity(named: "The toggle took the tap only on attempt \(attempt)") { _ in }
+                }
+                return
+            }
+        }
+        XCTContext.runActivity(named: "The toggle did not react to 4 taps") { _ in }
+    }
+
+    private func waitWhileDisconnecting(timeout: TimeInterval = 15) {
+        let deadline = Date().addingTimeInterval(timeout)
+        while (toggle.value as? String) == "Disconnecting" && Date() < deadline {
+            Thread.sleep(forTimeInterval: 0.5)
+        }
+        // The lock outlasts the state by up to the app's 3 s timer.
+        Thread.sleep(forTimeInterval: 3)
+    }
+
+    /// Whether anything answered a tap: the state moved, or a prompt came up.
+    private func reacted(from before: String, within seconds: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(seconds)
+        while Date() < deadline {
+            let now = toggle.value as? String ?? ""
+            if now != before && now != "" {
+                return true
+            }
+            if SignInAlert.isShowing || SystemAlerts.springboard.alerts.firstMatch.exists || app.alerts.firstMatch.exists {
+                return true
+            }
+            Thread.sleep(forTimeInterval: 0.5)
+        }
+        return false
     }
 
     /// The peer's NetBird name under the status once connected, e.g.
