@@ -36,7 +36,9 @@ struct ConnectionScreen {
         app.descendants(matching: .any)["VPN Connection"]
     }
 
-    func connect(timeout: TimeInterval = 60) {
+    /// The tunnel can take well over a minute to come up on a busy account,
+    /// so a connect is given three minutes before it counts as failed.
+    func connect(timeout: TimeInterval = 180) {
         tapToggle()
         waitForState("Connected", timeout: timeout, acceptingPrompts: true)
     }
@@ -68,6 +70,12 @@ struct ConnectionScreen {
         TabBar(app: app).open("Connection")
         guard (toggle.value as? String) != "Disconnected" else { return }
         toggle.tap()
+        // With On Demand on, the app asks first, since iOS would reconnect
+        // right away otherwise.
+        let onDemand = app.alerts["VPN On Demand Active"]
+        if onDemand.waitForExistence(timeout: 2) {
+            onDemand.buttons["Disable & Disconnect"].tap()
+        }
         waitForState("Disconnected", timeout: timeout, acceptingPrompts: false)
     }
 
@@ -418,5 +426,33 @@ struct OnDemandScreen {
         toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
         let target = NSPredicate(format: "value == %@", on ? "1" : "0")
         _ = XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: target, object: toggle)], timeout: 5)
+    }
+}
+
+/// The app's own alerts — the ones it raises by itself, not in answer to a
+/// test's tap. A test that finds one up before it starts closes it with the
+/// alert's non-acting button, so a state left behind by an earlier test does
+/// not block the screens this one needs.
+enum AppAlerts {
+
+    /// Buttons that close an alert without acting on it.
+    private static let dismissLabels = ["Later", "OK", "Cancel", "Edit Rules"]
+
+    /// Closes the app's alerts one after another; returns their titles.
+    @discardableResult
+    static func dismissAll(in app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) -> [String] {
+        var closed: [String] = []
+        for _ in 0..<5 {
+            let alert = app.alerts.firstMatch
+            guard alert.waitForExistence(timeout: 1) else { break }
+            let title = alert.label
+            guard let label = dismissLabels.first(where: { alert.buttons[$0].exists }) else {
+                XCTFail("an alert with no way to close it is up: \(title)", file: file, line: line)
+                break
+            }
+            alert.buttons[label].tap()
+            closed.append(title)
+        }
+        return closed
     }
 }

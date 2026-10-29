@@ -31,6 +31,7 @@ class E2ETestCase: XCTestCase {
         app = AppLaunch.toMainScreen()
         profiles = ProfilesScreen(app: app)
         connection = ConnectionScreen(app: app)
+        resetDeviceWideState()
         removeLeftovers()
         profiles.open()
         startingProfile = profiles.activeProfileName ?? startingProfile
@@ -160,6 +161,25 @@ class E2ETestCase: XCTestCase {
         #else
         return false
         #endif
+    }
+
+    /// Undoes what an earlier test may have left on for the whole device: an
+    /// alert the app raised by itself, and VPN On Demand. On Demand left on
+    /// makes iOS reconnect by itself, raises "Authentication required" over
+    /// the screens a test needs, and turns every disconnect into a prompt —
+    /// one test that could not switch it off failed all the ones after it.
+    private func resetDeviceWideState() {
+        let closed = AppAlerts.dismissAll(in: app)
+        let onDemand = OnDemandScreen(app: app)
+        onDemand.open()
+        let wasOn = onDemand.isOn
+        onDemand.set(false)
+        AppAlerts.dismissAll(in: app)
+        if !closed.isEmpty || wasOn {
+            XCTContext.runActivity(named: "Reset left-over state: "
+                + (closed.map { "closed \"\($0)\"" } + (wasOn ? ["switched VPN On Demand off"] : [])).joined(separator: ", ")) { _ in }
+        }
+        XCTAssertFalse(onDemand.isOn, "VPN On Demand could not be switched off")
     }
 
     /// Removes test profiles a failed run left behind. An active profile

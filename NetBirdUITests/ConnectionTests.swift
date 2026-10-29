@@ -149,6 +149,8 @@ final class ConnectionTests: E2ETestCase {
 
         let onDemand = OnDemandScreen(app: app)
         addTeardownBlock { [app] in
+            // An alert the case itself provoked would cover the switch.
+            AppAlerts.dismissAll(in: app!)
             let screen = OnDemandScreen(app: app!)
             screen.open()
             screen.set(false)
