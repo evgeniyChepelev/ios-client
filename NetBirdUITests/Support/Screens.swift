@@ -419,10 +419,13 @@ struct NewProfileSheet {
     }
 
     func submit() {
+        // Create sits in the navigation bar, right under where banners show.
+        Banner.waitUntilGone()
         createButton.tap()
     }
 
     func cancel() {
+        Banner.waitUntilGone()
         navigationBar.buttons["Cancel"].tap()
         XCTAssertTrue(waitUntilClosed(timeout: 5), "the New Profile sheet did not close")
     }
