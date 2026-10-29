@@ -171,9 +171,10 @@ class E2ETestCase: XCTestCase {
         guard !leftovers.isEmpty else { return }
 
         step("Remove leftovers: \(leftovers.joined(separator: ", "))") {
+            // Switching away closes the VPN by itself. No separate disconnect
+            // first: a leftover stuck in Connecting ignores the toggle, and
+            // waiting for it to read Disconnected failed every later test.
             if let active = profiles.activeProfileName, active.hasPrefix(ProfilesScreen.testProfilePrefix) {
-                connection.disconnect()
-                profiles.open()
                 profiles.switchTo("default")
             }
             for name in leftovers {
