@@ -26,6 +26,10 @@ class E2ETestCase: XCTestCase {
     /// tell a pass from a failure there.
     private var passed = false
 
+    /// Set when the test cancelled a sign-in, so cleanup waits for the late
+    /// "Login failed" that follows (LOGIN-B01).
+    private var cancelledLogin = false
+
     override func setUpWithError() throws {
         continueAfterFailure = false
         app = AppLaunch.toMainScreen()
@@ -39,7 +43,8 @@ class E2ETestCase: XCTestCase {
 
     override func tearDownWithError() throws {
         guard passed, !createdProfiles.isEmpty else { return }
-        closeLoginFailed()
+        // The alert can come more than 10 s after the cancel.
+        closeLoginFailed(waiting: cancelledLogin ? 15 : 0)
         connection.disconnect()
         profiles.open()
         profiles.switchTo(startingProfile)
@@ -111,6 +116,7 @@ class E2ETestCase: XCTestCase {
     /// that fails on it.
     func cancelSignIn() {
         SignInAlert.cancel()
+        cancelledLogin = true
         closeLoginFailed(waiting: 10)
     }
 
