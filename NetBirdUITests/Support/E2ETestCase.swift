@@ -39,6 +39,7 @@ class E2ETestCase: XCTestCase {
 
     override func tearDownWithError() throws {
         guard passed, !createdProfiles.isEmpty else { return }
+        closeLoginFailed()
         connection.disconnect()
         profiles.open()
         profiles.switchTo(startingProfile)
@@ -92,22 +93,36 @@ class E2ETestCase: XCTestCase {
             if connection.state == "Connected" {
                 return false
             }
+            // A "Login failed" from an earlier cancel that came late takes
+            // the tap; close it and tap again.
+            if closeLoginFailed() {
+                connection.tapToggle()
+                continue
+            }
             SystemAlerts.acceptIfPresent(timeout: 1)
         }
         return SignInAlert.isShowing
     }
 
     /// Cancels the sign-in alert. The app then reports the cancel as a
-    /// "Login failed" error — the known bug LOGIN-B01 is disabled for. That
-    /// alert would block the next tap, so it is recorded and closed here;
-    /// B01 is the case that fails on it.
+    /// "Login failed" error — the known bug LOGIN-B01 is disabled for — and
+    /// it can take several seconds to come. That alert would block the next
+    /// tap, so it is waited for, recorded and closed here; B01 is the case
+    /// that fails on it.
     func cancelSignIn() {
         SignInAlert.cancel()
+        closeLoginFailed(waiting: 10)
+    }
+
+    /// Closes the known "Login failed" alert if it is up, or comes up within
+    /// `seconds`. Returns whether it did.
+    @discardableResult
+    func closeLoginFailed(waiting seconds: TimeInterval = 0) -> Bool {
         let failed = app.alerts["Login failed"]
-        if failed.waitForExistence(timeout: 3) {
-            XCTContext.runActivity(named: "Known issue (LOGIN-B01): \"Login failed\" after the cancel, closed") { _ in }
-            failed.buttons["OK"].tap()
-        }
+        guard failed.exists || (seconds > 0 && failed.waitForExistence(timeout: seconds)) else { return false }
+        XCTContext.runActivity(named: "Known issue (LOGIN-B01): \"Login failed\" after a cancelled login, closed") { _ in }
+        failed.buttons["OK"].tap()
+        return true
     }
 
     /// Creates a profile logged in with the setup key from NB_SETUP_KEY — the

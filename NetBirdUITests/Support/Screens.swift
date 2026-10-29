@@ -287,8 +287,9 @@ struct ProfilesScreen {
         XCTAssertTrue(add.waitForExistence(timeout: 5), "no add button on the Profiles screen")
         let sheet = NewProfileSheet(app: app)
         // A notification banner over the navigation bar takes the tap.
-        for attempt in 1...2 {
-            if attempt > 1 { Banner.waitUntilGone() }
+        for _ in 1...2 {
+            // A tap on a banner opens it, and can leave a Face ID prompt.
+            Banner.waitUntilGone()
             add.tap()
             if sheet.navigationBar.waitForExistence(timeout: 5) { return sheet }
         }
