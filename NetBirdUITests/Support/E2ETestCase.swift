@@ -97,6 +97,19 @@ class E2ETestCase: XCTestCase {
         return SignInAlert.isShowing
     }
 
+    /// Cancels the sign-in alert. The app then reports the cancel as a
+    /// "Login failed" error — the known bug LOGIN-B01 is disabled for. That
+    /// alert would block the next tap, so it is recorded and closed here;
+    /// B01 is the case that fails on it.
+    func cancelSignIn() {
+        SignInAlert.cancel()
+        let failed = app.alerts["Login failed"]
+        if failed.waitForExistence(timeout: 3) {
+            XCTContext.runActivity(named: "Known issue (LOGIN-B01): \"Login failed\" after the cancel, closed") { _ in }
+            failed.buttons["OK"].tap()
+        }
+    }
+
     /// Creates a profile logged in with the setup key from NB_SETUP_KEY — the
     /// stand-in for the plan's "authenticated profile", made through the UI
     /// rather than seeded, since the app is not modified for testing.

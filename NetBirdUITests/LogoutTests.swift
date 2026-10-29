@@ -31,7 +31,7 @@ final class LogoutTests: E2ETestCase {
         step("Connecting \(profile) asks for a login") {
             profiles.switchTo(profile)
             XCTAssertTrue(connectExpectingLogin(), "the logged-out profile connected without a login")
-            SignInAlert.cancel()
+            cancelSignIn()
         }
         markPassed()
     }

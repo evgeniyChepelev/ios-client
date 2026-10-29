@@ -32,7 +32,7 @@ final class LoginRequiredTests: E2ETestCase {
             XCTAssertNotEqual(connection.state, "Connected",
                               "the VPN reached Connected before the login")
             screenshot("Sign-in asked for \(profile)")
-            SignInAlert.cancel()
+            cancelSignIn()
         }
 
         markPassed()

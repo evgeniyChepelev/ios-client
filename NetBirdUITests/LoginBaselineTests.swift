@@ -43,7 +43,7 @@ final class LoginBaselineTests: E2ETestCase {
         step("Connecting \(profile) asks for a login again") {
             profiles.switchTo(profile)
             XCTAssertTrue(connectExpectingLogin(), "a logged-out profile connected without asking for a login")
-            SignInAlert.cancel()
+            cancelSignIn()
         }
         markPassed()
     }
@@ -147,7 +147,7 @@ final class LoginBaselineTests: E2ETestCase {
             step("Connect asks for a login, which is cancelled") {
                 XCTAssertTrue(connectExpectingLogin(), "connecting a new profile did not ask for a login within 30 s")
                 screenshot("Sign-in asked for \(profile)")
-                SignInAlert.cancel()
+                cancelSignIn()
                 XCTAssertNotEqual(connection.state, "Connected",
                                   "the VPN connected without a login")
             }

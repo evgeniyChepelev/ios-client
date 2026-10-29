@@ -129,18 +129,6 @@ final class LoginBrowserTests: E2ETestCase {
 
     // MARK: - Helpers
 
-    /// Cancels the sign-in alert. The app then reports the cancel as a
-    /// "Login failed" error — the known bug LOGIN-B01 is disabled for. That
-    /// alert would block the next tap, so it is recorded and closed here;
-    /// B01 is the case that fails on it.
-    private func cancelSignIn() {
-        SignInAlert.cancel()
-        let failed = app.alerts["Login failed"]
-        if failed.waitForExistence(timeout: 3) {
-            XCTContext.runActivity(named: "Known issue (LOGIN-B01): \"Login failed\" after the cancel, closed") { _ in }
-            failed.buttons["OK"].tap()
-        }
-    }
 
     /// Creates a signed-out profile, switches to it and taps Connect, leaving
     /// the sign-in alert on screen.

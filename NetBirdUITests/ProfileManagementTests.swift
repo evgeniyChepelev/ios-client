@@ -26,7 +26,7 @@ final class ProfileManagementTests: E2ETestCase {
             profiles.switchTo(signedOut)
             XCTAssertTrue(connectExpectingLogin(), "connecting \(signedOut) did not ask for a login within 30 s")
             screenshot("Sign-in asked for \(signedOut)")
-            SignInAlert.cancel()
+            cancelSignIn()
             expectStaysDisconnected(for: 3)
         }
         markPassed()
@@ -42,7 +42,7 @@ final class ProfileManagementTests: E2ETestCase {
         step("Ask for a login on \(signedOut) and cancel it") {
             profiles.switchTo(signedOut)
             XCTAssertTrue(connectExpectingLogin(), "connecting \(signedOut) did not ask for a login within 30 s")
-            SignInAlert.cancel()
+            cancelSignIn()
             expectStaysDisconnected(for: 3)
         }
 
@@ -76,7 +76,7 @@ final class ProfileManagementTests: E2ETestCase {
             profiles.open()
             profiles.switchTo(first)
             XCTAssertTrue(connectExpectingLogin(), "the logged-out \(first) connected without asking for a login")
-            SignInAlert.cancel()
+            cancelSignIn()
         }
         markPassed()
     }
