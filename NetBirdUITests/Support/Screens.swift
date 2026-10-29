@@ -70,6 +70,15 @@ struct ConnectionScreen {
                 TabBar(app: app).open("Peers")
                 TabBar(app: app).open("Connection")
             }
+            // Right after a profile switch the app can bring back the
+            // Settings tab by itself while the tap waits.
+            if !toggle.exists {
+                TabBar(app: app).open("Connection")
+                guard toggle.waitForExistence(timeout: 10) else {
+                    XCTFail("no connect toggle")
+                    return
+                }
+            }
             toggle.tap()
             if reacted(from: before, within: 8) {
                 if attempt > 1 {
