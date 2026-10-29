@@ -36,6 +36,13 @@ struct ConnectionScreen {
         app.descendants(matching: .any)["VPN Connection"]
     }
 
+    /// The toggle's state, or "" when the Connection tab is not on screen.
+    /// Reading `toggle.value` directly fails the test when the toggle is
+    /// not there, for instance while another tab or an alert is up.
+    var state: String {
+        toggle.exists ? (toggle.value as? String ?? "") : ""
+    }
+
     /// The tunnel can take well over a minute to come up on a busy account,
     /// so a connect is given three minutes before it counts as failed.
     func connect(timeout: TimeInterval = 180) {
@@ -117,8 +124,10 @@ struct ConnectionScreen {
 
     func disconnect(timeout: TimeInterval = 30) {
         TabBar(app: app).open("Connection")
-        guard (toggle.value as? String) != "Disconnected" else { return }
-        toggle.tap()
+        guard state != "Disconnected" else { return }
+        // Right after Connected the toggle is still locked by the connect,
+        // so the tap goes through the same retry as a connect.
+        tapToggle()
         // With On Demand on, the app asks first, since iOS would reconnect
         // right away otherwise.
         let onDemand = app.alerts["VPN On Demand Active"]
@@ -276,9 +285,14 @@ struct ProfilesScreen {
     func openNewProfileSheet() -> NewProfileSheet {
         let add = app.navigationBars["Profiles"].buttons["Add"]
         XCTAssertTrue(add.waitForExistence(timeout: 5), "no add button on the Profiles screen")
-        add.tap()
         let sheet = NewProfileSheet(app: app)
-        XCTAssertTrue(sheet.navigationBar.waitForExistence(timeout: 5), "the New Profile sheet did not open")
+        // A notification banner over the navigation bar takes the tap.
+        for attempt in 1...2 {
+            if attempt > 1 { Banner.waitUntilGone() }
+            add.tap()
+            if sheet.navigationBar.waitForExistence(timeout: 5) { return sheet }
+        }
+        XCTFail("the New Profile sheet did not open")
         return sheet
     }
 
@@ -349,9 +363,13 @@ struct ProfilesScreen {
     /// on the active profile.
     func remove(_ name: String) {
         guard let target = row(name, timeout: 2) else { return }
-        target.swipeLeft()
         let remove = app.buttons["Remove"]
-        XCTAssertTrue(remove.waitForExistence(timeout: 3), "no Remove action on \(name)")
+        for _ in 1...2 where !remove.exists {
+            Banner.waitUntilGone()
+            target.swipeLeft()
+            _ = remove.waitForExistence(timeout: 3)
+        }
+        XCTAssertTrue(remove.exists, "no Remove action on \(name)")
         remove.tap()
         let alert = app.alerts["Remove Profile"]
         XCTAssertTrue(alert.waitForExistence(timeout: 5), "no Remove Profile confirmation")
@@ -503,5 +521,23 @@ enum AppAlerts {
             closed.append(title)
         }
         return closed
+    }
+}
+
+/// A notification banner at the top of the screen. It covers the navigation
+/// bar for a few seconds and takes any tap aimed there.
+enum Banner {
+    static var element: XCUIElement {
+        SystemAlerts.springboard.descendants(matching: .any)["NotificationShortLookView"]
+    }
+
+    static func waitUntilGone(timeout: TimeInterval = 10) {
+        guard element.exists else { return }
+        XCTContext.runActivity(named: "Wait for a notification banner to go away") { _ in
+            let deadline = Date().addingTimeInterval(timeout)
+            while element.exists && Date() < deadline {
+                Thread.sleep(forTimeInterval: 0.5)
+            }
+        }
     }
 }

@@ -54,16 +54,24 @@ enum SystemAlerts {
     static func acceptIfPresent(timeout: TimeInterval = 1) -> Bool {
         let alert = springboard.alerts.firstMatch
         guard alert.waitForExistence(timeout: timeout), !SignInAlert.isShowing else { return false }
-        guard let label = alert.buttons.allElementsBoundByIndex.map(\.label).first(where: acceptLabels.contains) else {
+        // The alert can go away at any moment — dismissed by hand, or replaced
+        // by the next prompt — and querying a vanished alert fails the test.
+        // A snapshot throws instead, and a tap at its coordinates cannot fail.
+        guard let snapshot = try? alert.snapshot(), let button = findButton(in: snapshot) else {
             return false
         }
-        // The alert can go away between finding it and tapping it — dismissed by
-        // hand, or replaced by the next prompt. Tapping a vanished button fails
-        // the test, so look it up again right before the tap.
-        let button = alert.buttons[label]
-        guard button.exists, button.isHittable else { return false }
-        button.tap()
+        springboard.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: button.frame.midX, dy: button.frame.midY))
+            .tap()
         return true
+    }
+
+    private static func findButton(in snapshot: XCUIElementSnapshot) -> XCUIElementSnapshot? {
+        for child in snapshot.children {
+            if child.elementType == .button && acceptLabels.contains(child.label) { return child }
+            if let found = findButton(in: child) { return found }
+        }
+        return nil
     }
 }
 

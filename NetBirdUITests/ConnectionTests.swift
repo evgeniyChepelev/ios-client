@@ -91,14 +91,14 @@ final class ConnectionTests: E2ETestCase {
 
         step("The toggle settles within 60 s") {
             let settled = settledState(within: 60)
-            XCTAssertNotNil(settled, "the toggle is stuck at \(connection.toggle.value as? String ?? "nothing")")
+            XCTAssertNotNil(settled, "the toggle is stuck at \(connection.state)")
             XCTContext.runActivity(named: "Settled on \(settled ?? "nothing")") { _ in }
             XCTAssertFalse(SignInAlert.isShowing, "a login was asked for")
             XCTAssertFalse(app.alerts["Login failed"].exists, "a login error is shown")
         }
 
         step("It still connects normally") {
-            if (connection.toggle.value as? String) != "Connected" {
+            if connection.state != "Connected" {
                 connectWithoutLogin()
             }
         }
@@ -126,7 +126,7 @@ final class ConnectionTests: E2ETestCase {
             let connected = NSPredicate(format: "value == %@", "Connected")
             XCTAssertEqual(XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: connected, object: connection.toggle)],
                                             timeout: 15), .completed,
-                           "after a relaunch the toggle shows \(connection.toggle.value as? String ?? "nothing")")
+                           "after a relaunch the toggle shows \(connection.state)")
         }
         screenshot("After relaunch")
         markPassed()
@@ -179,7 +179,7 @@ final class ConnectionTests: E2ETestCase {
                     prompt.buttons["Later"].tap()
                 }
                 XCTAssertFalse(SignInAlert.isShowing, "On Demand opened the login browser on its own")
-                XCTAssertNotEqual(connection.toggle.value as? String, "Connected", "the VPN connected without credentials")
+                XCTAssertNotEqual(connection.state, "Connected", "the VPN connected without credentials")
                 Thread.sleep(forTimeInterval: 1)
             }
             XCTContext.runActivity(named: "Login prompts in 30 s: \(prompts)") { _ in }
@@ -187,7 +187,7 @@ final class ConnectionTests: E2ETestCase {
             let others = app.alerts.allElementsBoundByIndex.map(\.label)
             XCTAssertTrue(others.isEmpty, "another alert came up: \(others)")
             TabBar(app: app).open("Connection")
-            XCTAssertNotEqual(connection.toggle.value as? String, "Connected", "the VPN connected without credentials")
+            XCTAssertNotEqual(connection.state, "Connected", "the VPN connected without credentials")
         }
         markPassed()
     }
@@ -200,7 +200,7 @@ final class ConnectionTests: E2ETestCase {
         var last = ""
         while Date() < deadline {
             SystemAlerts.acceptIfPresent(timeout: 0.5)
-            let value = connection.toggle.value as? String ?? ""
+            let value = connection.state
             if value != last {
                 last = value
                 stableSince = Date()

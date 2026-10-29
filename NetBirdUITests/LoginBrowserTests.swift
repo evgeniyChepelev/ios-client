@@ -60,14 +60,14 @@ final class LoginBrowserTests: E2ETestCase {
         _ = signedOutProfileAsked()
 
         step("Cancel the first login") {
-            SignInAlert.cancel()
+            cancelSignIn()
             expectStaysDisconnected(for: 3)
         }
 
         step("Connect again asks for a login within 60 s") {
             XCTAssertTrue(connectExpectingLogin(timeout: 60), "the retry did not ask for a login within 60 s")
             screenshot("Second sign-in alert")
-            SignInAlert.cancel()
+            cancelSignIn()
         }
 
         markPassed()
@@ -86,7 +86,7 @@ final class LoginBrowserTests: E2ETestCase {
                     XCTAssertTrue(connectExpectingLogin(timeout: 60),
                                   "attempt \(attempt) did not ask for a login within 60 s")
                 }
-                SignInAlert.cancel()
+                cancelSignIn()
                 expectStaysDisconnected(for: 3)
                 XCTAssertEqual(app.alerts.count, 0,
                                "an alert is left after attempt \(attempt): \(app.alerts.firstMatch.label)")
@@ -115,19 +115,32 @@ final class LoginBrowserTests: E2ETestCase {
             XCTContext.runActivity(named: alertKept ? "The sign-in alert is still up" : "The login was dropped") { _ in }
             screenshot("After coming back")
             if alertKept {
-                SignInAlert.cancel()
+                cancelSignIn()
             }
             expectStaysDisconnected(for: 3)
         }
 
         step("Connect still asks for a login") {
             XCTAssertTrue(connectExpectingLogin(timeout: 60), "Connect is stuck after coming back from the background")
-            SignInAlert.cancel()
+            cancelSignIn()
         }
         markPassed()
     }
 
     // MARK: - Helpers
+
+    /// Cancels the sign-in alert. The app then reports the cancel as a
+    /// "Login failed" error — the known bug LOGIN-B01 is disabled for. That
+    /// alert would block the next tap, so it is recorded and closed here;
+    /// B01 is the case that fails on it.
+    private func cancelSignIn() {
+        SignInAlert.cancel()
+        let failed = app.alerts["Login failed"]
+        if failed.waitForExistence(timeout: 3) {
+            XCTContext.runActivity(named: "Known issue (LOGIN-B01): \"Login failed\" after the cancel, closed") { _ in }
+            failed.buttons["OK"].tap()
+        }
+    }
 
     /// Creates a signed-out profile, switches to it and taps Connect, leaving
     /// the sign-in alert on screen.

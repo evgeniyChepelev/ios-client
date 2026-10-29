@@ -89,7 +89,7 @@ class E2ETestCase: XCTestCase {
         connection.tapToggle()
         let deadline = Date().addingTimeInterval(timeout)
         while !SignInAlert.isShowing && Date() < deadline {
-            if (connection.toggle.value as? String) == "Connected" {
+            if connection.state == "Connected" {
                 return false
             }
             SystemAlerts.acceptIfPresent(timeout: 1)
@@ -128,7 +128,7 @@ class E2ETestCase: XCTestCase {
         let deadline = Date().addingTimeInterval(seconds)
         var last = ""
         while Date() < deadline {
-            last = connection.toggle.value as? String ?? ""
+            last = connection.state
             if last == "Connected" {
                 XCTFail("the VPN connected without a login", file: file, line: line)
                 return
@@ -142,7 +142,7 @@ class E2ETestCase: XCTestCase {
     /// login error.
     func connectWithoutLogin(file: StaticString = #filePath, line: UInt = #line) {
         connection.connect()
-        XCTAssertEqual(connection.toggle.value as? String, "Connected", "not connected", file: file, line: line)
+        XCTAssertEqual(connection.state, "Connected", "not connected", file: file, line: line)
         XCTAssertFalse(SignInAlert.isShowing, "a login was asked for", file: file, line: line)
         XCTAssertFalse(app.alerts["Login failed"].exists, "a login error is shown", file: file, line: line)
     }

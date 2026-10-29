@@ -67,7 +67,8 @@ final class LoginBaselineTests: E2ETestCase {
             profiles.open()
             profiles.cancelSwitch(to: second)
             XCTAssertEqual(profiles.activeProfileName, first, "the active profile changed despite Cancel")
-            XCTAssertEqual(connection.toggle.value as? String, "Connected", "the VPN dropped despite Cancel")
+            TabBar(app: app).open("Connection")
+            XCTAssertEqual(connection.state, "Connected", "the VPN dropped despite Cancel")
         }
 
         step("Switching to \(second) disconnects and makes it active") {
@@ -147,7 +148,7 @@ final class LoginBaselineTests: E2ETestCase {
                 XCTAssertTrue(connectExpectingLogin(), "connecting a new profile did not ask for a login within 30 s")
                 screenshot("Sign-in asked for \(profile)")
                 SignInAlert.cancel()
-                XCTAssertNotEqual(connection.toggle.value as? String, "Connected",
+                XCTAssertNotEqual(connection.state, "Connected",
                                   "the VPN connected without a login")
             }
         }

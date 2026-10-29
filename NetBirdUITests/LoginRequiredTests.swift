@@ -29,7 +29,7 @@ final class LoginRequiredTests: E2ETestCase {
 
         step("Connect asks for a login within 30 s") {
             XCTAssertTrue(connectExpectingLogin(timeout: 30), "no sign-in alert within 30 s of Connect")
-            XCTAssertNotEqual(connection.toggle.value as? String, "Connected",
+            XCTAssertNotEqual(connection.state, "Connected",
                               "the VPN reached Connected before the login")
             screenshot("Sign-in asked for \(profile)")
             SignInAlert.cancel()
