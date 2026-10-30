@@ -82,12 +82,51 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     /// Config.apply → applyMDMPolicy on the next Run.
     private var mdmConfigObserver: NSObjectProtocol?
 
+    /// Whether the Darwin observer for the app's mirror is registered.
+    private var isObservingMDMMirror = false
+
     /// Set when a policy change arrived while a restart was already in
     /// flight. Go's detector records the newer policy the moment it is
     /// observed, so it will not report the change again - if this restart
     /// were simply dropped, that policy would never be applied. The flag
     /// makes the handler come back for it.
-    private var pendingMDMRestart = false
+    private var _pendingMDMRestart = false
+    private var pendingMDMRestart: Bool {
+        get {
+            tearDownLock.lock()
+            defer { tearDownLock.unlock() }
+            return _pendingMDMRestart
+        }
+        set {
+            tearDownLock.lock()
+            _pendingMDMRestart = newValue
+            tearDownLock.unlock()
+        }
+    }
+
+    /// Attempts the deferred retry has already made. Bounded so a restart
+    /// pipeline that never clears its guard cannot leave a timer rescheduling
+    /// itself for the life of the tunnel.
+    private var mdmRetryAttempts = 0
+    private static let mdmRetryInterval: TimeInterval = 2.0
+
+    /// How long the restart pipeline waits before releasing its own guard.
+    private static let restartWatchdogTimeout: TimeInterval = 30.0
+
+    /// Derived from the watchdogs rather than fixed, so the budget cannot drift
+    /// apart from them again.
+    ///
+    /// The guards are released by watchdogs of their own, timed from when they
+    /// armed - which can be later than the first deferral, since a restart may
+    /// begin while we are already waiting. A budget merely equal to a watchdog
+    /// therefore expires while the guard is still legitimately held, and the
+    /// policy is dropped: hasMDMPolicyChanged() has already recorded it as
+    /// handled, so nothing asks again until the next change or tunnel start.
+    /// One full watchdog of headroom guarantees at least one attempt after the
+    /// guard can have released.
+    private static let maxMDMRetryAttempts = Int(
+        (max(initialStartGuardTimeout, restartWatchdogTimeout) * 2) / mdmRetryInterval
+    )
 
     /// The deferred retry that waits out an in-flight restart. Tracked so
     /// teardown can cancel it: otherwise it fires afterwards, passes a guard
@@ -142,28 +181,6 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         tearDownLock.lock()
         defer { tearDownLock.unlock() }
         return _tunnelGeneration
-    }
-
-    /// True from the moment startTunnel hands off to adapter.start until that
-    /// call completes.
-    ///
-    /// Initial startup does not set isRestartInProgress, so without this an
-    /// MDM restart arriving in that window would pass the guard and call
-    /// adapter.stop() while client.run() was still being dispatched — the
-    /// adapter does not serialise the two. Deferring instead of dropping means
-    /// the policy is applied as soon as startup finishes.
-    private var _isStartingTunnel = false
-    private var isStartingTunnel: Bool {
-        get {
-            tearDownLock.lock()
-            defer { tearDownLock.unlock() }
-            return _isStartingTunnel
-        }
-        set {
-            tearDownLock.lock()
-            _isStartingTunnel = newValue
-            tearDownLock.unlock()
-        }
     }
 
     /// True only while `generation` is still the live lifecycle and no
@@ -286,9 +303,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             ))
         }
 
-        isStartingTunnel = true
         adapter.start { [weak self] error in
-            self?.isStartingTunnel = false
             if self?.completeTunnelStart(with: error) == false {
                 AppLogger.shared.log("startTunnel: engine reported connected again, start outcome stays as first reported")
             }
@@ -336,7 +351,6 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         // a queued write would let it see the old value and restart into the
         // teardown.
         isTearingDown = true
-        isStartingTunnel = false
 
         // A stop that lands before the engine ever reported connected would otherwise leave
         // NE waiting on the start outcome forever: the outcome is delivered from the
@@ -687,7 +701,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                 userInfo: [NSLocalizedDescriptionKey: "VPN restart timed out."]
             ))
         }
-        monitorQueue.asyncAfter(deadline: .now() + 30, execute: timeoutWorkItem)
+        monitorQueue.asyncAfter(deadline: .now() + Self.restartWatchdogTimeout, execute: timeoutWorkItem)
 
         adapter.stop { [weak self] in
             self?.monitorQueue.async { [weak self] in
@@ -1050,15 +1064,14 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             let data = try PropertyListEncoder().encode(routeSelectionDetails)
             completionHandler(data)
         } catch {
+            // No payload, not an empty list. The app takes any answer from the core as the
+            // truth about the network map and replaces its cached routes with it, while a
+            // missing payload is a failed read that leaves the cache alone. The usual
+            // failure here is "not connected": the app's read on `.connected` arrives
+            // before the engine is reachable, and answering it with zero routes emptied
+            // the exit node selector until some view happened to read again.
             AppLogger.shared.log("Error retrieving or encoding route selection details: \(error.localizedDescription)")
-            let defaultStatus = RoutesSelectionDetails(all: false, append: false, routeSelectionInfo: [])
-            do {
-                let data = try PropertyListEncoder().encode(defaultStatus)
-                completionHandler(data)
-            } catch {
-                AppLogger.shared.log("Failed to encode default route selection details: \(error.localizedDescription)")
-                completionHandler(nil)
-            }
+            completionHandler(nil)
         }
     }
 
@@ -1128,6 +1141,11 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         let delay: TimeInterval = (status == "connected") ? 1.0 : 0.0
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
             WidgetCenter.shared.reloadAllTimelines()
+            // The app is often not running when another VPN takes over, so the
+            // Control Center toggle would keep showing NetBird as connected.
+            if #available(iOS 18.0, *) {
+                ControlCenter.shared.reloadControls(ofKind: "io.netbird.vpn.control")
+            }
         }
     }
 
@@ -1150,7 +1168,49 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     /// — the entire UserDefaults change channel is shared, so this
     /// fires on every unrelated preference write too. Deciding whether
     /// the policy actually changed is Go's job; see the handler.
+    /// Listens for the app telling us the App Group mirror of the managed
+    /// configuration changed.
+    ///
+    /// This is the path a real MDM push actually takes to the extension: iOS
+    /// writes the policy into the app's preferences domain, the app mirrors it
+    /// into the App Group and posts this Darwin notification. The
+    /// UserDefaults.didChangeNotification observer below is process-local and
+    /// never fires for any of that.
+    private func startObservingMDMMirror() {
+        guard !isObservingMDMMirror else { return }
+        CFNotificationCenterAddObserver(
+            CFNotificationCenterGetDarwinNotifyCenter(),
+            Unmanaged.passUnretained(self).toOpaque(),
+            { _, observer, _, _, _ in
+                guard let observer = observer else { return }
+                let provider = Unmanaged<PacketTunnelProvider>
+                    .fromOpaque(observer)
+                    .takeUnretainedValue()
+                AppLogger.shared.log("MDM: App Group mirror changed; checking the policy")
+                provider.handleManagedConfigDidChangeIfRelevant()
+            },
+            GlobalConstants.darwinNotificationMDMPolicyChanged as CFString,
+            nil,
+            .deliverImmediately
+        )
+        isObservingMDMMirror = true
+    }
+
+    /// Unregisters before the provider can go away: the observer holds an
+    /// unretained pointer to it.
+    private func stopObservingMDMMirror() {
+        guard isObservingMDMMirror else { return }
+        CFNotificationCenterRemoveObserver(
+            CFNotificationCenterGetDarwinNotifyCenter(),
+            Unmanaged.passUnretained(self).toOpaque(),
+            CFNotificationName(GlobalConstants.darwinNotificationMDMPolicyChanged as CFString),
+            nil
+        )
+        isObservingMDMMirror = false
+    }
+
     private func startObservingMDMConfigChanges() {
+        startObservingMDMMirror()
         if mdmConfigObserver != nil {
             return
         }
@@ -1165,6 +1225,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     }
 
     private func stopObservingMDMConfigChanges() {
+        stopObservingMDMMirror()
         if let token = mdmConfigObserver {
             NotificationCenter.default.removeObserver(token)
             mdmConfigObserver = nil
@@ -1185,6 +1246,9 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         }
 
         AppLogger.shared.log("MDM: managed configuration changed; restarting client")
+        monitorQueue.async { [weak self] in
+            self?.mdmRetryAttempts = 0
+        }
         requestMDMRestart()
     }
 
@@ -1203,19 +1267,36 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         // guard and start their own stop/start pipelines.
         monitorQueue.async { [weak self] in
             guard let self = self, !self.isTearingDown else { return }
-            guard !self.isRestartInProgress, !self.isStartingTunnel else {
+            // isInitialStartInFlight, not a latch of our own: restartClient()
+            // consults exactly this flag and returns early while it is set, so
+            // a second guard would leave a window where this request passes,
+            // clears pendingMDMRestart, and then finds the restart refused with
+            // nothing left to retry it.
+            guard !self.isRestartInProgress, !self.isInitialStartInFlight else {
+                guard self.mdmRetryAttempts < Self.maxMDMRetryAttempts else {
+                    // Past a full watchdog of headroom the pipeline is wedged,
+                    // not busy, and a timer rescheduling itself forever would
+                    // only hide that.
+                    AppLogger.shared.log("MDM: giving up after \(self.mdmRetryAttempts) retries — a start or restart never finished; the policy will apply on the next change or tunnel start")
+                    self.mdmRetryWorkItem = nil
+                    self.mdmRetryAttempts = 0
+                    self.pendingMDMRestart = false
+                    return
+                }
+                self.mdmRetryAttempts += 1
                 self.pendingMDMRestart = true
-                AppLogger.shared.log("MDM: a start or restart is in flight; will retry once it finishes")
+                AppLogger.shared.log("MDM: a start or restart is in flight; retry \(self.mdmRetryAttempts)/\(Self.maxMDMRetryAttempts)")
                 self.mdmRetryWorkItem?.cancel()
                 let retry = DispatchWorkItem { [weak self] in
                     guard let self = self, self.pendingMDMRestart, !self.isTearingDown else { return }
                     self.requestMDMRestart()
                 }
                 self.mdmRetryWorkItem = retry
-                self.monitorQueue.asyncAfter(deadline: .now() + 2, execute: retry)
+                self.monitorQueue.asyncAfter(deadline: .now() + Self.mdmRetryInterval, execute: retry)
                 return
             }
             self.mdmRetryWorkItem = nil
+            self.mdmRetryAttempts = 0
             self.pendingMDMRestart = false
             // Only a restart that actually brought the engine back up means the
             // policy is in force; a deferred or failed one must not tell the
