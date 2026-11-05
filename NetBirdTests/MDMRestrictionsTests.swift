@@ -30,6 +30,7 @@ final class MDMRestrictionsTests: XCTestCase {
         "disableMetricsCollection": false,
         "splitTunnelMode": false,
         "splitTunnelApps": false,
+        "allowRemoteJobs": true,
         "disableAdvancedView": false
       },
       "features": {
@@ -50,9 +51,17 @@ final class MDMRestrictionsTests: XCTestCase {
         XCTAssertTrue(r.mdm.disableAutoConnect)
         XCTAssertEqual(r.mdm.disableAdvancedView, false)
         XCTAssertFalse(r.mdm.hidesAdvancedView)
+        XCTAssertTrue(r.mdm.remoteJobsAllowed)
         XCTAssertTrue(r.features.disableProfiles)
         XCTAssertFalse(r.features.disableNetworks)
         XCTAssertFalse(r.features.disableUpdateSettings)
+    }
+
+    func testRemoteJobsAllowedDefaultsToUnmanaged() {
+        XCTAssertFalse(MDMRestrictions.decode(#"{"mdm":{}}"#).mdm.remoteJobsAllowed)
+        XCTAssertFalse(MDMRestrictions.empty.mdm.remoteJobsAllowed)
+        XCTAssertTrue(MDMRestrictions.decode(#"{"mdm":{"allowRemoteJobs":true}}"#).mdm.remoteJobsAllowed)
+        XCTAssertFalse(MDMRestrictions.decode(#"{"mdm":{"allowRemoteJobs":false}}"#).mdm.remoteJobsAllowed)
     }
 
     /// `allowServerSSH` is tri-state: absent and explicit null both mean
@@ -114,6 +123,29 @@ final class MDMRestrictionsTests: XCTestCase {
         XCTAssertFalse(r.mdm.disableClientRoutes)
         XCTAssertEqual(r.mdm.managementURL, "")
         XCTAssertFalse(r.features.disableProfiles)
+    }
+
+    /// A rejected commit must name the setting the policy refused, and must
+    /// not swallow an ordinary failure as a policy one.
+    func testManagedRejectionMessage() {
+        let refusal = "fields managed by MDM cannot be modified: [rosenpassEnabled]"
+        let message = MDMRestrictions.rejectionMessage(from: refusal)
+        XCTAssertNotNil(message)
+        XCTAssertTrue(message!.contains("rosenpassEnabled"), "message was: \(message!)")
+        XCTAssertTrue(message!.contains("managed by your organization"))
+
+        // Several keys come through as Go formats them.
+        let many = MDMRestrictions.rejectionMessage(
+            from: "fields managed by MDM cannot be modified: [rosenpassEnabled preSharedKey]"
+        )
+        XCTAssertEqual(many?.contains("preSharedKey"), true)
+
+        // No key list still yields the generic explanation.
+        XCTAssertNotNil(MDMRestrictions.rejectionMessage(from: "fields managed by MDM cannot be modified"))
+
+        // An unrelated failure is not a policy refusal.
+        XCTAssertNil(MDMRestrictions.rejectionMessage(from: "no space left on device"))
+        XCTAssertNil(MDMRestrictions.rejectionMessage(from: ""))
     }
 
     /// Only a non-empty managementURL means the URL is enforced.
